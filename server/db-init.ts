@@ -4,34 +4,42 @@ export async function initializeDatabase() {
   console.log("Initializing database...");
   
   try {
-    // First, drop existing tables with wrong schema
+    // Drop ALL existing tables to ensure clean state
     await pool.query(`
       DROP TABLE IF EXISTS exhibition_images CASCADE;
       DROP TABLE IF EXISTS project_images CASCADE;
       DROP TABLE IF EXISTS analytics CASCADE;
+      DROP TABLE IF EXISTS page_views CASCADE;
+      DROP TABLE IF EXISTS slideshow_images CASCADE;
+      DROP TABLE IF EXISTS site_settings CASCADE;
+      DROP TABLE IF EXISTS exhibitions CASCADE;
+      DROP TABLE IF EXISTS projects CASCADE;
+      DROP TABLE IF EXISTS users CASCADE;
     `);
+
+    console.log("Dropped existing tables");
 
     // Create tables with correct schema
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
+      CREATE TABLE users (
         id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
         username TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL
       );
 
-      CREATE TABLE IF NOT EXISTS slideshow_images (
+      CREATE TABLE slideshow_images (
         id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
         image_url TEXT NOT NULL,
         alt_text TEXT DEFAULT '',
         display_order INTEGER NOT NULL DEFAULT 0
       );
 
-      CREATE TABLE IF NOT EXISTS site_settings (
+      CREATE TABLE site_settings (
         key VARCHAR PRIMARY KEY,
         value TEXT NOT NULL
       );
 
-      CREATE TABLE IF NOT EXISTS exhibitions (
+      CREATE TABLE exhibitions (
         id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
         title TEXT NOT NULL,
         description TEXT DEFAULT '',
@@ -42,7 +50,7 @@ export async function initializeDatabase() {
         display_order INTEGER NOT NULL DEFAULT 0
       );
 
-      CREATE TABLE IF NOT EXISTS projects (
+      CREATE TABLE projects (
         id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
         title TEXT NOT NULL,
         description TEXT DEFAULT '',
@@ -51,7 +59,7 @@ export async function initializeDatabase() {
         display_order INTEGER NOT NULL DEFAULT 0
       );
 
-      CREATE TABLE IF NOT EXISTS page_views (
+      CREATE TABLE page_views (
         id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
         page TEXT NOT NULL,
         visited_at TIMESTAMP NOT NULL DEFAULT NOW(),
