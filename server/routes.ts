@@ -203,6 +203,19 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/exhibitions/reorder", async (req, res) => {
+    try {
+      const { orderedIds } = req.body;
+      if (!Array.isArray(orderedIds)) {
+        return res.status(400).json({ error: "orderedIds must be an array" });
+      }
+      await storage.reorderExhibitions(orderedIds);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reorder exhibitions" });
+    }
+  });
+
   app.get("/api/projects", async (req, res) => {
     try {
       const items = await storage.getProjects();
@@ -252,6 +265,19 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete project" });
+    }
+  });
+
+  app.post("/api/projects/reorder", async (req, res) => {
+    try {
+      const { orderedIds } = req.body;
+      if (!Array.isArray(orderedIds)) {
+        return res.status(400).json({ error: "orderedIds must be an array" });
+      }
+      await storage.reorderProjects(orderedIds);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reorder projects" });
     }
   });
 
