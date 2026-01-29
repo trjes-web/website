@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useCV } from "@/lib/cvContext";
+import { EnvelopeParticles, useEnvelopeParticles } from "./EnvelopeParticles";
 
 interface NavBall {
   id: string;
@@ -37,6 +38,16 @@ export function FloatingNav() {
   const [renderTrigger, setRenderTrigger] = useState(0);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { particles, triggerParticles } = useEnvelopeParticles();
+  const [particleOrigin, setParticleOrigin] = useState({ x: 0, y: 0 });
+
+  const handleContactHover = (e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    setParticleOrigin({ x: centerX, y: centerY });
+    triggerParticles(centerX, centerY);
+  };
 
   const { data: portfolioData } = useQuery<{ value: string | null }>({
     queryKey: ["/api/settings/portfolioLink"],
@@ -68,6 +79,7 @@ export function FloatingNav() {
     return DEFAULT_PAGES;
   }, [enabledPagesData?.value]);
 
+  // Get dimensions
   useEffect(() => {
     const updateDimensions = () => {
       setDimensions({
@@ -83,6 +95,7 @@ export function FloatingNav() {
 
   const isMobile = dimensions.width > 0 && dimensions.width < 768;
 
+  // Initialize balls
   useEffect(() => {
     if (dimensions.width === 0 || dimensions.height === 0) return;
     if (ballsRef.current.length > 0) return;
@@ -135,6 +148,7 @@ export function FloatingNav() {
     setRenderTrigger(1);
   }, [dimensions.width, dimensions.height, enabledPages, isMobile]);
 
+  // Animation with setInterval (more reliable on mobile)
   useEffect(() => {
     if (ballsRef.current.length === 0 || dimensions.width === 0) return;
 
@@ -225,6 +239,7 @@ export function FloatingNav() {
             e.preventDefault();
             handleClick(ball);
           }}
+          onMouseEnter={ball.id === "contact" ? handleContactHover : undefined}
           href={ball.href}
           className="absolute pointer-events-auto cursor-pointer font-mono text-xs lowercase no-underline hover:underline"
           style={{
@@ -243,6 +258,11 @@ export function FloatingNav() {
           {ball.label}
         </a>
       ))}
+      <EnvelopeParticles 
+        particles={particles} 
+        originX={particleOrigin.x} 
+        originY={particleOrigin.y} 
+      />
     </div>
   );
 }
