@@ -145,11 +145,12 @@ export function FloatingNav() {
     const centerY = dimensions.height / 2;
     const orbitRadiusX = (dimensions.width / 2) - BALL_SIZE;
     const orbitRadiusY = Math.min((dimensions.height / 2) - EDGE_TOP - BALL_SIZE, dimensions.height * 0.35);
-    const orbitSpeed = 0.005;
+    const orbitSpeed = 0.008;
+    const mobile = isMobile;
 
     const animate = () => {
       setBalls(prevBalls => prevBalls.map(ball => {
-        if (isMobile) {
+        if (mobile) {
           const newAngle = ball.angle + orbitSpeed;
           const x = centerX + Math.cos(newAngle) * orbitRadiusX - BALL_SIZE / 2;
           const y = centerY + Math.sin(newAngle) * orbitRadiusY - BALL_SIZE / 2;
