@@ -74,6 +74,44 @@ export default function ProjectsAdmin() {
     },
   });
 
+  const toggleVisibility = useMutation({
+    mutationFn: async ({ id, visible }: { id: string; visible: boolean }) => {
+      const res = await fetch(`/api/projects/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visible }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    },
+  });
+
+  const reorderProjects = useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      const res = await fetch("/api/projects/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderedIds }),
+      });
+      if (!res.ok) throw new Error("Failed to reorder");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    },
+  });
+
+  const moveEntry = (index: number, direction: "up" | "down") => {
+    const newList = [...projects];
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= newList.length) return;
+    [newList[index], newList[newIndex]] = [newList[newIndex], newList[index]];
+    reorderProjects.mutate(newList.map(p => p.id));
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
@@ -370,12 +408,13 @@ export default function ProjectsAdmin() {
             <p className="font-mono text-xs lowercase text-gray-500">no projects yet.</p>
           ) : (
             <div className="space-y-4">
-              {projects.map((project) => {
+              {projects.map((project, index) => {
                 const images = (project.images as ProjectImage[]) || [];
+                const isVisible = project.visible !== false;
                 return (
                   <div
                     key={project.id}
-                    className="border border-black p-4"
+                    className={`border border-black p-4 ${!isVisible ? 'opacity-50 bg-gray-100' : ''}`}
                     data-testid={`project-item-${project.id}`}
                   >
                     <div className="flex gap-4 items-start">
@@ -387,10 +426,34 @@ export default function ProjectsAdmin() {
                         />
                       )}
                       <div className="flex-1 font-mono text-xs lowercase">
-                        <p className="font-bold mb-1">{project.title}</p>
+                        <p className="font-bold mb-1">
+                          {project.title}
+                          {!isVisible && <span className="ml-2 text-gray-400">(hidden)</span>}
+                        </p>
                         {project.date && <p className="text-gray-500">{project.date}</p>}
                         {images.length > 1 && <p className="text-gray-400 mt-1">{images.length} images</p>}
-                        <div className="flex gap-2 mt-2">
+                        <div className="flex gap-2 mt-2 flex-wrap">
+                          <button
+                            onClick={() => moveEntry(index, "up")}
+                            disabled={index === 0 || reorderProjects.isPending}
+                            className="border border-black px-2 py-1 hover:bg-black hover:text-white disabled:opacity-30"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            onClick={() => moveEntry(index, "down")}
+                            disabled={index === projects.length - 1 || reorderProjects.isPending}
+                            className="border border-black px-2 py-1 hover:bg-black hover:text-white disabled:opacity-30"
+                          >
+                            ↓
+                          </button>
+                          <button
+                            onClick={() => toggleVisibility.mutate({ id: project.id, visible: !isVisible })}
+                            disabled={toggleVisibility.isPending}
+                            className={`border px-2 py-1 ${isVisible ? 'border-gray-500 text-gray-500 hover:bg-gray-500' : 'border-green-600 text-green-600 hover:bg-green-600'} hover:text-white disabled:opacity-50`}
+                          >
+                            {isVisible ? 'hide' : 'show'}
+                          </button>
                           <button
                             onClick={() => startEdit(project)}
                             className="border border-black px-2 py-1 hover:bg-black hover:text-white"
