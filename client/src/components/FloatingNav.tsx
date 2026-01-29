@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useCV } from "@/lib/cvContext";
@@ -33,11 +33,10 @@ const DEFAULT_PAGES = ["portfolio", "cv", "projects", "contact", "archive"];
 export function FloatingNav() {
   const [, setLocation] = useLocation();
   const { openCV } = useCV();
-  const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | null>(null);
   const [balls, setBalls] = useState<NavBall[]>([]);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const [isReady, setIsReady] = useState(false);
+  const initializedRef = useRef(false);
 
   const { data: portfolioData } = useQuery<{ value: string | null }>({
     queryKey: ["/api/settings/portfolioLink"],
@@ -73,25 +72,22 @@ export function FloatingNav() {
 
   useEffect(() => {
     const updateDimensions = () => {
-      if (containerRef.current) {
-        const { width, height } = containerRef.current.getBoundingClientRect();
-        if (width > 0 && height > 0) {
-          setDimensions({ width, height });
-        }
-      }
+      setDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
     };
 
     updateDimensions();
-    const timeout = setTimeout(updateDimensions, 100);
     window.addEventListener("resize", updateDimensions);
-    return () => {
-      window.removeEventListener("resize", updateDimensions);
-      clearTimeout(timeout);
-    };
+    return () => window.removeEventListener("resize", updateDimensions);
   }, []);
 
   useEffect(() => {
     if (dimensions.width === 0 || dimensions.height === 0) return;
+    if (initializedRef.current) return;
+    
+    initializedRef.current = true;
     
     const navItems = ALL_NAV_ITEMS.filter(item => enabledPages.includes(item.id));
     const edges = isMobile ? { left: 10, right: 10 } : { left: 150, right: 150 };
@@ -139,11 +135,10 @@ export function FloatingNav() {
     });
     
     setBalls(newBalls);
-    setIsReady(true);
   }, [dimensions.width, dimensions.height, enabledPages, isMobile]);
 
   useEffect(() => {
-    if (!isReady || balls.length === 0 || dimensions.width === 0) return;
+    if (balls.length === 0 || dimensions.width === 0) return;
 
     const edges = isMobile ? { left: 10, right: 10 } : { left: 150, right: 150 };
     const centerX = dimensions.width / 2;
@@ -152,10 +147,8 @@ export function FloatingNav() {
     const orbitRadiusY = Math.min((dimensions.height / 2) - EDGE_TOP - BALL_SIZE, dimensions.height * 0.35);
     const orbitSpeed = 0.005;
 
-    let localBalls = [...balls];
-
     const animate = () => {
-      localBalls = localBalls.map(ball => {
+      setBalls(prevBalls => prevBalls.map(ball => {
         if (isMobile) {
           const newAngle = ball.angle + orbitSpeed;
           const x = centerX + Math.cos(newAngle) * orbitRadiusX - BALL_SIZE / 2;
@@ -199,9 +192,8 @@ export function FloatingNav() {
 
           return { ...ball, x, y, vx, vy };
         }
-      });
+      }));
 
-      setBalls([...localBalls]);
       animationRef.current = requestAnimationFrame(animate);
     };
 
@@ -213,7 +205,7 @@ export function FloatingNav() {
         animationRef.current = null;
       }
     };
-  }, [isReady, isMobile, dimensions.width, dimensions.height]);
+  }, [balls.length, isMobile, dimensions.width, dimensions.height]);
 
   const handleClick = (ball: NavBall) => {
     if (ball.id === "portfolio" && portfolioData?.value) {
@@ -225,10 +217,8 @@ export function FloatingNav() {
     }
   };
 
-  if (!isReady) return null;
-
   return (
-    <div ref={containerRef} className="fixed inset-0 pointer-events-none z-40">
+    <div className="fixed inset-0 pointer-events-none z-40">
       {balls.map(ball => (
         <a
           key={ball.id}
