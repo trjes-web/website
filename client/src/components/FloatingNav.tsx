@@ -11,7 +11,7 @@ interface NavBall {
   y: number;
   vx: number;
   vy: number;
-  angle?: number;
+  angle: number;
   external?: boolean;
 }
 
@@ -35,11 +35,9 @@ export function FloatingNav() {
   const { openCV } = useCV();
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | null>(null);
-  const ballsRef = useRef<NavBall[]>([]);
   const [balls, setBalls] = useState<NavBall[]>([]);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const initializedRef = useRef(false);
-  const lastPagesKeyRef = useRef("");
+  const [isReady, setIsReady] = useState(false);
 
   const { data: portfolioData } = useQuery<{ value: string | null }>({
     queryKey: ["/api/settings/portfolioLink"],
@@ -71,96 +69,95 @@ export function FloatingNav() {
     return DEFAULT_PAGES;
   }, [enabledPagesData?.value]);
 
-  const enabledPagesKey = enabledPages.join(",");
+  const isMobile = dimensions.width > 0 && dimensions.width < 768;
 
   useEffect(() => {
     const updateDimensions = () => {
       if (containerRef.current) {
         const { width, height } = containerRef.current.getBoundingClientRect();
-        setDimensions({ width, height });
+        if (width > 0 && height > 0) {
+          setDimensions({ width, height });
+        }
       }
     };
 
     updateDimensions();
+    const timeout = setTimeout(updateDimensions, 100);
     window.addEventListener("resize", updateDimensions);
-    return () => window.removeEventListener("resize", updateDimensions);
+    return () => {
+      window.removeEventListener("resize", updateDimensions);
+      clearTimeout(timeout);
+    };
   }, []);
-
-  const isMobile = dimensions.width < 768;
-
-  const getEdges = useCallback(() => {
-    if (isMobile) {
-      return { left: 10, right: 10 };
-    }
-    return { left: 150, right: 150 };
-  }, [isMobile]);
 
   useEffect(() => {
     if (dimensions.width === 0 || dimensions.height === 0) return;
     
-    const needsInit = !initializedRef.current || lastPagesKeyRef.current !== enabledPagesKey;
-    
-    if (needsInit) {
-      initializedRef.current = true;
-      lastPagesKeyRef.current = enabledPagesKey;
-      
-      const navItems = ALL_NAV_ITEMS.filter(item => enabledPages.includes(item.id));
-      const edges = getEdges();
-      
-      const newBalls = navItems.map((item, i) => {
-        const baseAngle = (i / navItems.length) * Math.PI * 2;
-        
-        if (isMobile) {
-          return {
-            ...item,
-            x: 0,
-            y: 0,
-            vx: 0,
-            vy: 0,
-            angle: baseAngle,
-          };
-        } else {
-          const edge = Math.floor(Math.random() * 2);
-          let x, y;
-          if (edge === 0) {
-            x = Math.random() * edges.left;
-            y = EDGE_TOP + Math.random() * (dimensions.height - EDGE_TOP - EDGE_BOTTOM - BALL_SIZE);
-          } else {
-            x = dimensions.width - edges.right + Math.random() * (edges.right - BALL_SIZE);
-            y = EDGE_TOP + Math.random() * (dimensions.height - EDGE_TOP - EDGE_BOTTOM - BALL_SIZE);
-          }
-          
-          const angle = baseAngle + Math.random() * 0.5;
-          return {
-            ...item,
-            x: Math.max(0, Math.min(x, dimensions.width - BALL_SIZE)),
-            y: Math.max(EDGE_TOP, Math.min(y, dimensions.height - EDGE_BOTTOM - BALL_SIZE)),
-            vx: Math.cos(angle) * SPEED * (Math.random() > 0.5 ? 1 : -1),
-            vy: Math.sin(angle) * SPEED * (Math.random() > 0.5 ? 1 : -1),
-          };
-        }
-      });
-      
-      ballsRef.current = newBalls;
-      setBalls(newBalls);
-    }
-  }, [dimensions.width, dimensions.height, enabledPagesKey, enabledPages, getEdges, isMobile]);
-
-  useEffect(() => {
-    if (dimensions.width === 0 || dimensions.height === 0 || ballsRef.current.length === 0) return;
-
-    const edges = getEdges();
+    const navItems = ALL_NAV_ITEMS.filter(item => enabledPages.includes(item.id));
+    const edges = isMobile ? { left: 10, right: 10 } : { left: 150, right: 150 };
     
     const centerX = dimensions.width / 2;
     const centerY = dimensions.height / 2;
-    const orbitRadiusX = (dimensions.width / 2) - BALL_SIZE / 2 + 10;
-    const orbitRadiusY = (dimensions.height / 2) - EDGE_TOP - BALL_SIZE / 2;
-    const orbitSpeed = 0.003;
+    const orbitRadiusX = (dimensions.width / 2) - BALL_SIZE;
+    const orbitRadiusY = Math.min((dimensions.height / 2) - EDGE_TOP - BALL_SIZE, dimensions.height * 0.35);
+    
+    const newBalls = navItems.map((item, i) => {
+      const baseAngle = (i / navItems.length) * Math.PI * 2;
+      
+      if (isMobile) {
+        const x = centerX + Math.cos(baseAngle) * orbitRadiusX - BALL_SIZE / 2;
+        const y = centerY + Math.sin(baseAngle) * orbitRadiusY - BALL_SIZE / 2;
+        
+        return {
+          ...item,
+          x: Math.max(0, Math.min(x, dimensions.width - BALL_SIZE)),
+          y: Math.max(EDGE_TOP, Math.min(y, dimensions.height - EDGE_BOTTOM - BALL_SIZE)),
+          vx: 0,
+          vy: 0,
+          angle: baseAngle,
+        };
+      } else {
+        const edge = i % 2;
+        let x, y;
+        if (edge === 0) {
+          x = Math.random() * (edges.left - BALL_SIZE);
+          y = EDGE_TOP + (i / navItems.length) * (dimensions.height - EDGE_TOP - EDGE_BOTTOM - BALL_SIZE);
+        } else {
+          x = dimensions.width - edges.right + Math.random() * (edges.right - BALL_SIZE);
+          y = EDGE_TOP + (i / navItems.length) * (dimensions.height - EDGE_TOP - EDGE_BOTTOM - BALL_SIZE);
+        }
+        
+        return {
+          ...item,
+          x: Math.max(0, Math.min(x, dimensions.width - BALL_SIZE)),
+          y: Math.max(EDGE_TOP, Math.min(y, dimensions.height - EDGE_BOTTOM - BALL_SIZE)),
+          vx: (Math.random() - 0.5) * SPEED * 2,
+          vy: (Math.random() - 0.5) * SPEED * 2,
+          angle: baseAngle,
+        };
+      }
+    });
+    
+    setBalls(newBalls);
+    setIsReady(true);
+  }, [dimensions.width, dimensions.height, enabledPages, isMobile]);
+
+  useEffect(() => {
+    if (!isReady || balls.length === 0 || dimensions.width === 0) return;
+
+    const edges = isMobile ? { left: 10, right: 10 } : { left: 150, right: 150 };
+    const centerX = dimensions.width / 2;
+    const centerY = dimensions.height / 2;
+    const orbitRadiusX = (dimensions.width / 2) - BALL_SIZE;
+    const orbitRadiusY = Math.min((dimensions.height / 2) - EDGE_TOP - BALL_SIZE, dimensions.height * 0.35);
+    const orbitSpeed = 0.005;
+
+    let localBalls = [...balls];
 
     const animate = () => {
-      const updatedBalls = ballsRef.current.map(ball => {
+      localBalls = localBalls.map(ball => {
         if (isMobile) {
-          const newAngle = (ball.angle || 0) + orbitSpeed;
+          const newAngle = ball.angle + orbitSpeed;
           const x = centerX + Math.cos(newAngle) * orbitRadiusX - BALL_SIZE / 2;
           const y = centerY + Math.sin(newAngle) * orbitRadiusY - BALL_SIZE / 2;
           
@@ -204,8 +201,7 @@ export function FloatingNav() {
         }
       });
 
-      ballsRef.current = updatedBalls;
-      setBalls([...updatedBalls]);
+      setBalls([...localBalls]);
       animationRef.current = requestAnimationFrame(animate);
     };
 
@@ -217,7 +213,7 @@ export function FloatingNav() {
         animationRef.current = null;
       }
     };
-  }, [dimensions.width, dimensions.height, getEdges, isMobile]);
+  }, [isReady, isMobile, dimensions.width, dimensions.height]);
 
   const handleClick = (ball: NavBall) => {
     if (ball.id === "portfolio" && portfolioData?.value) {
@@ -228,6 +224,8 @@ export function FloatingNav() {
       setLocation(ball.href);
     }
   };
+
+  if (!isReady) return null;
 
   return (
     <div ref={containerRef} className="fixed inset-0 pointer-events-none z-40">
