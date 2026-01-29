@@ -24,12 +24,14 @@ export interface IStorage {
   updateExhibition(id: string, exhibition: Partial<InsertExhibition>): Promise<Exhibition | undefined>;
   deleteExhibition(id: string): Promise<boolean>;
   getExhibitionCount(): Promise<number>;
+  reorderExhibitions(orderedIds: string[]): Promise<void>;
 
   getProjects(): Promise<Project[]>;
   getProject(id: string): Promise<Project | undefined>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, project: Partial<InsertProject>): Promise<Project | undefined>;
   deleteProject(id: string): Promise<boolean>;
+  reorderProjects(orderedIds: string[]): Promise<void>;
 
   recordPageView(data: InsertPageView): Promise<PageView>;
   getPageViewStats(): Promise<{ page: string; views: number }[]>;
@@ -160,6 +162,15 @@ export class DatabaseStorage implements IStorage {
     return items.length;
   }
 
+  async reorderExhibitions(orderedIds: string[]): Promise<void> {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db
+        .update(exhibitions)
+        .set({ displayOrder: i })
+        .where(eq(exhibitions.id, orderedIds[i]));
+    }
+  }
+
   async getProjects(): Promise<Project[]> {
     return await db.select().from(projects).orderBy(asc(projects.displayOrder));
   }
@@ -189,6 +200,15 @@ export class DatabaseStorage implements IStorage {
   async deleteProject(id: string): Promise<boolean> {
     const result = await db.delete(projects).where(eq(projects.id, id)).returning();
     return result.length > 0;
+  }
+
+  async reorderProjects(orderedIds: string[]): Promise<void> {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db
+        .update(projects)
+        .set({ displayOrder: i })
+        .where(eq(projects.id, orderedIds[i]));
+    }
   }
 
   async recordPageView(data: InsertPageView): Promise<PageView> {
