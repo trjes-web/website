@@ -76,6 +76,44 @@ export default function ExhibitionsAdmin() {
     },
   });
 
+  const toggleVisibility = useMutation({
+    mutationFn: async ({ id, visible }: { id: string; visible: boolean }) => {
+      const res = await fetch(`/api/exhibitions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visible }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/exhibitions"] });
+    },
+  });
+
+  const reorderExhibitions = useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      const res = await fetch("/api/exhibitions/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderedIds }),
+      });
+      if (!res.ok) throw new Error("Failed to reorder");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/exhibitions"] });
+    },
+  });
+
+  const moveEntry = (index: number, direction: "up" | "down") => {
+    const newList = [...exhibitions];
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= newList.length) return;
+    [newList[index], newList[newIndex]] = [newList[newIndex], newList[index]];
+    reorderExhibitions.mutate(newList.map(e => e.id));
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
@@ -401,12 +439,13 @@ export default function ExhibitionsAdmin() {
             <p className="font-mono text-xs lowercase text-gray-500">no archive entries yet.</p>
           ) : (
             <div className="space-y-4">
-              {exhibitions.map((exhibition) => {
+              {exhibitions.map((exhibition, index) => {
                 const images = (exhibition.images as ExhibitionImage[]) || [];
+                const isVisible = exhibition.visible !== false;
                 return (
                   <div
                     key={exhibition.id}
-                    className="border border-black p-4"
+                    className={`border border-black p-4 ${!isVisible ? 'opacity-50 bg-gray-100' : ''}`}
                     data-testid={`exhibition-item-${exhibition.id}`}
                   >
                     <div className="flex gap-4 items-start">
@@ -418,11 +457,35 @@ export default function ExhibitionsAdmin() {
                         />
                       )}
                       <div className="flex-1 font-mono text-xs lowercase">
-                        <p className="font-bold mb-1">{exhibition.title}</p>
+                        <p className="font-bold mb-1">
+                          {exhibition.title}
+                          {!isVisible && <span className="ml-2 text-gray-400">(hidden)</span>}
+                        </p>
                         {exhibition.date && <p className="text-gray-500">{exhibition.date}</p>}
                         {exhibition.location && <p className="text-gray-500">{exhibition.location}</p>}
                         {images.length > 1 && <p className="text-gray-400 mt-1">{images.length} images</p>}
-                        <div className="flex gap-2 mt-2">
+                        <div className="flex gap-2 mt-2 flex-wrap">
+                          <button
+                            onClick={() => moveEntry(index, "up")}
+                            disabled={index === 0 || reorderExhibitions.isPending}
+                            className="border border-black px-2 py-1 hover:bg-black hover:text-white disabled:opacity-30"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            onClick={() => moveEntry(index, "down")}
+                            disabled={index === exhibitions.length - 1 || reorderExhibitions.isPending}
+                            className="border border-black px-2 py-1 hover:bg-black hover:text-white disabled:opacity-30"
+                          >
+                            ↓
+                          </button>
+                          <button
+                            onClick={() => toggleVisibility.mutate({ id: exhibition.id, visible: !isVisible })}
+                            disabled={toggleVisibility.isPending}
+                            className={`border px-2 py-1 ${isVisible ? 'border-gray-500 text-gray-500 hover:bg-gray-500' : 'border-green-600 text-green-600 hover:bg-green-600'} hover:text-white disabled:opacity-50`}
+                          >
+                            {isVisible ? 'hide' : 'show'}
+                          </button>
                           <button
                             onClick={() => startEdit(exhibition)}
                             className="border border-black px-2 py-1 hover:bg-black hover:text-white"
