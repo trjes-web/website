@@ -33,10 +33,10 @@ const DEFAULT_PAGES = ["portfolio", "cv", "projects", "contact", "archive"];
 export function FloatingNav() {
   const [, setLocation] = useLocation();
   const { openCV } = useCV();
-  const animationRef = useRef<number | null>(null);
-  const [balls, setBalls] = useState<NavBall[]>([]);
+  const ballsRef = useRef<NavBall[]>([]);
+  const [renderTrigger, setRenderTrigger] = useState(0);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const initializedRef = useRef(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: portfolioData } = useQuery<{ value: string | null }>({
     queryKey: ["/api/settings/portfolioLink"],
@@ -68,8 +68,6 @@ export function FloatingNav() {
     return DEFAULT_PAGES;
   }, [enabledPagesData?.value]);
 
-  const isMobile = dimensions.width > 0 && dimensions.width < 768;
-
   useEffect(() => {
     const updateDimensions = () => {
       setDimensions({
@@ -83,11 +81,11 @@ export function FloatingNav() {
     return () => window.removeEventListener("resize", updateDimensions);
   }, []);
 
+  const isMobile = dimensions.width > 0 && dimensions.width < 768;
+
   useEffect(() => {
     if (dimensions.width === 0 || dimensions.height === 0) return;
-    if (initializedRef.current) return;
-    
-    initializedRef.current = true;
+    if (ballsRef.current.length > 0) return;
     
     const navItems = ALL_NAV_ITEMS.filter(item => enabledPages.includes(item.id));
     const edges = isMobile ? { left: 10, right: 10 } : { left: 150, right: 150 };
@@ -97,7 +95,7 @@ export function FloatingNav() {
     const orbitRadiusX = (dimensions.width / 2) - BALL_SIZE;
     const orbitRadiusY = Math.min((dimensions.height / 2) - EDGE_TOP - BALL_SIZE, dimensions.height * 0.35);
     
-    const newBalls = navItems.map((item, i) => {
+    ballsRef.current = navItems.map((item, i) => {
       const baseAngle = (i / navItems.length) * Math.PI * 2;
       
       if (isMobile) {
@@ -134,22 +132,22 @@ export function FloatingNav() {
       }
     });
     
-    setBalls(newBalls);
+    setRenderTrigger(1);
   }, [dimensions.width, dimensions.height, enabledPages, isMobile]);
 
   useEffect(() => {
-    if (balls.length === 0 || dimensions.width === 0) return;
+    if (ballsRef.current.length === 0 || dimensions.width === 0) return;
 
     const edges = isMobile ? { left: 10, right: 10 } : { left: 150, right: 150 };
     const centerX = dimensions.width / 2;
     const centerY = dimensions.height / 2;
     const orbitRadiusX = (dimensions.width / 2) - BALL_SIZE;
     const orbitRadiusY = Math.min((dimensions.height / 2) - EDGE_TOP - BALL_SIZE, dimensions.height * 0.35);
-    const orbitSpeed = 0.008;
+    const orbitSpeed = 0.02;
     const mobile = isMobile;
 
-    const animate = () => {
-      setBalls(prevBalls => prevBalls.map(ball => {
+    const tick = () => {
+      ballsRef.current = ballsRef.current.map(ball => {
         if (mobile) {
           const newAngle = ball.angle + orbitSpeed;
           const x = centerX + Math.cos(newAngle) * orbitRadiusX - BALL_SIZE / 2;
@@ -193,20 +191,20 @@ export function FloatingNav() {
 
           return { ...ball, x, y, vx, vy };
         }
-      }));
+      });
 
-      animationRef.current = requestAnimationFrame(animate);
+      setRenderTrigger(t => t + 1);
     };
 
-    animationRef.current = requestAnimationFrame(animate);
+    intervalRef.current = setInterval(tick, 50);
     
     return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
-  }, [balls.length, isMobile, dimensions.width, dimensions.height]);
+  }, [ballsRef.current.length > 0, isMobile, dimensions.width, dimensions.height]);
 
   const handleClick = (ball: NavBall) => {
     if (ball.id === "portfolio" && portfolioData?.value) {
@@ -220,7 +218,7 @@ export function FloatingNav() {
 
   return (
     <div className="fixed inset-0 pointer-events-none z-40">
-      {balls.map(ball => (
+      {ballsRef.current.map(ball => (
         <a
           key={ball.id}
           onClick={(e) => {
@@ -228,7 +226,7 @@ export function FloatingNav() {
             handleClick(ball);
           }}
           href={ball.href}
-          className="absolute pointer-events-auto cursor-pointer font-mono text-xs lowercase no-underline hover:underline transition-all"
+          className="absolute pointer-events-auto cursor-pointer font-mono text-xs lowercase no-underline hover:underline"
           style={{
             left: ball.x,
             top: ball.y,
@@ -238,6 +236,7 @@ export function FloatingNav() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            willChange: "transform",
           }}
           data-testid={`nav-link-${ball.id}`}
         >
