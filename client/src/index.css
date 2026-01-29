@@ -1,0 +1,78 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme inline {
+  --color-background: #FFFFFF;
+  --color-foreground: #000000;
+  --color-card: #FFFFFF;
+  --color-card-foreground: #000000;
+  --color-popover: #FFFFFF;
+  --color-popover-foreground: #000000;
+  --color-primary: #0000EE; /* Default web blue link */
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: #E0E0E0; /* Windows 95 grey */
+  --color-secondary-foreground: #000000;
+  --color-muted: #F0F0F0;
+  --color-muted-foreground: #666666;
+  --color-accent: #0000EE;
+  --color-accent-foreground: #FFFFFF;
+  --color-destructive: #FF0000;
+  --color-destructive-foreground: #FFFFFF;
+  --color-border: #000000;
+  --color-input: #FFFFFF;
+  --color-ring: #0000EE;
+  
+  --font-sans: 'Times New Roman', Times, serif;
+  --font-mono: 'Courier Prime', 'Courier New', monospace;
+  
+  --radius: 0px;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply font-mono bg-background text-foreground antialiased;
+    cursor: default;
+  }
+  
+  /* Reset link styles to look like standard web 1.0 links unless overridden */
+  a {
+    @apply text-primary hover:underline;
+    transition: color 0.1s ease;
+  }
+  
+  a:hover {
+    color: #FF00FF !important;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-sans font-bold;
+  }
+
+  /* Early internet selection style */
+  ::selection {
+    background: #0000EE;
+    color: white;
+  }
+}
+
+/* CV content rich text styles */
+.cv-content b, .cv-content strong {
+  font-weight: bold;
+}
+.cv-content u {
+  text-decoration: underline;
+}
+.cv-content .serif {
+  font-family: 'Times New Roman', Times, serif;
+}
+.cv-content p {
+  margin-bottom: 0.5rem;
+}
+.cv-content br {
+  display: block;
+  content: "";
+  margin-top: 0.25rem;
+}
