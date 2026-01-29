@@ -4,6 +4,14 @@ export async function initializeDatabase() {
   console.log("Initializing database...");
   
   try {
+    // First, drop existing tables with wrong schema
+    await pool.query(`
+      DROP TABLE IF EXISTS exhibition_images CASCADE;
+      DROP TABLE IF EXISTS project_images CASCADE;
+      DROP TABLE IF EXISTS analytics CASCADE;
+    `);
+
+    // Create tables with correct schema
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
