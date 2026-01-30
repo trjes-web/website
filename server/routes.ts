@@ -1,316 +1,250 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { insertSlideshowImageSchema, insertExhibitionSchema, insertProjectSchema } from "@shared/schema";
-import { z } from "zod";
-import { registerUploadRoutes } from "./upload-routes";
+import { users, slideshowImages, siteSettings, exhibitions, projects, pageViews, type User, type InsertUser, type SlideshowImage, type InsertSlideshowImage, type SiteSetting, type Exhibition, type InsertExhibition, type Project, type InsertProject, type InsertPageView, type PageView } from "@shared/schema";
+import { db } from "./db";
+import { eq, asc, desc, sql, gte } from "drizzle-orm";
 
-const updateSlideshowImageSchema = z.object({
-  imageUrl: z.string().optional(),
-  altText: z.string().optional(),
-  displayOrder: z.number().int().min(0).optional(),
-});
-
-const updateExhibitionSchema = z.object({
-  title: z.string().optional(),
-  description: z.string().optional(),
-  images: z.array(z.object({ url: z.string(), caption: z.string().optional() })).optional(),
-  date: z.string().optional(),
-  location: z.string().optional(),
-  floorPlanUrl: z.string().optional(),
-  displayOrder: z.number().int().min(0).optional(),
-  visible: z.boolean().optional(),
-});
-
-const updateProjectSchema = z.object({
-  title: z.string().optional(),
-  description: z.string().optional(),
-  images: z.array(z.object({ url: z.string(), caption: z.string().optional() })).optional(),
-  date: z.string().optional(),
-  displayOrder: z.number().int().min(0).optional(),
-  visible: z.boolean().optional(),
-});
-
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "artist2024";
-
-export async function registerRoutes(
-  httpServer: Server,
-  app: Express
-): Promise<Server> {
+export interface IStorage {
+  getUser(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
   
-  registerUploadRoutes(app);
+  getSlideshowImages(): Promise<SlideshowImage[]>;
+  getSlideshowImage(id: string): Promise<SlideshowImage | undefined>;
+  createSlideshowImage(image: InsertSlideshowImage): Promise<SlideshowImage>;
+  updateSlideshowImage(id: string, image: Partial<InsertSlideshowImage>): Promise<SlideshowImage | undefined>;
+  deleteSlideshowImage(id: string): Promise<boolean>;
+  getSlideshowImageCount(): Promise<number>;
+  reorderSlideshowImages(orderedIds: string[]): Promise<void>;
 
-  app.post("/api/admin/verify", (req, res) => {
-    const { password } = req.body;
-    if (password === ADMIN_PASSWORD) {
-      res.json({ success: true });
-    } else {
-      res.status(401).json({ error: "Invalid password" });
-    }
-  });
-  
-  app.get("/api/slideshow", async (req, res) => {
-    try {
-      const images = await storage.getSlideshowImages();
-      res.json(images);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch slideshow images" });
-    }
-  });
+  getSetting(key: string): Promise<string | undefined>;
+  setSetting(key: string, value: string): Promise<SiteSetting>;
 
-  app.post("/api/slideshow", async (req, res) => {
-    try {
-      const count = await storage.getSlideshowImageCount();
-      if (count >= 5) {
-        return res.status(400).json({ error: "Maximum 5 images allowed" });
-      }
+  getExhibitions(): Promise<Exhibition[]>;
+  getExhibition(id: string): Promise<Exhibition | undefined>;
+  createExhibition(exhibition: InsertExhibition): Promise<Exhibition>;
+  updateExhibition(id: string, exhibition: Partial<InsertExhibition>): Promise<Exhibition | undefined>;
+  deleteExhibition(id: string): Promise<boolean>;
+  getExhibitionCount(): Promise<number>;
+  reorderExhibitions(orderedIds: string[]): Promise<void>;
 
-      const parsed = insertSlideshowImageSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.message });
-      }
+  getProjects(): Promise<Project[]>;
+  getProject(id: string): Promise<Project | undefined>;
+  createProject(project: InsertProject): Promise<Project>;
+  updateProject(id: string, project: Partial<InsertProject>): Promise<Project | undefined>;
+  deleteProject(id: string): Promise<boolean>;
+  reorderProjects(orderedIds: string[]): Promise<void>;
 
-      const image = await storage.createSlideshowImage(parsed.data);
-      res.status(201).json(image);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to create slideshow image" });
-    }
-  });
-
-  app.patch("/api/slideshow/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      
-      const parsed = updateSlideshowImageSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.message });
-      }
-
-      const image = await storage.updateSlideshowImage(id, parsed.data);
-      if (!image) {
-        return res.status(404).json({ error: "Image not found" });
-      }
-      res.json(image);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update slideshow image" });
-    }
-  });
-
-  app.post("/api/slideshow/reorder", async (req, res) => {
-    try {
-      const schema = z.object({
-        orderedIds: z.array(z.string()),
-      });
-      
-      const parsed = schema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.message });
-      }
-
-      await storage.reorderSlideshowImages(parsed.data.orderedIds);
-      const images = await storage.getSlideshowImages();
-      res.json(images);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to reorder images" });
-    }
-  });
-
-  app.delete("/api/slideshow/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const deleted = await storage.deleteSlideshowImage(id);
-      if (!deleted) {
-        return res.status(404).json({ error: "Image not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete slideshow image" });
-    }
-  });
-
-  app.get("/api/settings/:key", async (req, res) => {
-    try {
-      const value = await storage.getSetting(req.params.key);
-      res.json({ value: value || null });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get setting" });
-    }
-  });
-
-  app.post("/api/settings/:key", async (req, res) => {
-    try {
-      const { value } = req.body;
-      if (typeof value !== "string") {
-        return res.status(400).json({ error: "Value must be a string" });
-      }
-      const setting = await storage.setSetting(req.params.key, value);
-      res.json(setting);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to save setting" });
-    }
-  });
-
-  app.get("/api/exhibitions", async (req, res) => {
-    try {
-      const items = await storage.getExhibitions();
-      res.json(items);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch exhibitions" });
-    }
-  });
-
-  app.post("/api/exhibitions", async (req, res) => {
-    try {
-      const parsed = insertExhibitionSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.message });
-      }
-
-      const exhibition = await storage.createExhibition(parsed.data);
-      res.status(201).json(exhibition);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to create exhibition" });
-    }
-  });
-
-  app.patch("/api/exhibitions/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      
-      const parsed = updateExhibitionSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.message });
-      }
-
-      const exhibition = await storage.updateExhibition(id, parsed.data);
-      if (!exhibition) {
-        return res.status(404).json({ error: "Exhibition not found" });
-      }
-      res.json(exhibition);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update exhibition" });
-    }
-  });
-
-  app.delete("/api/exhibitions/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const deleted = await storage.deleteExhibition(id);
-      if (!deleted) {
-        return res.status(404).json({ error: "Exhibition not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete exhibition" });
-    }
-  });
-
-  app.post("/api/exhibitions/reorder", async (req, res) => {
-    try {
-      const { orderedIds } = req.body;
-      if (!Array.isArray(orderedIds)) {
-        return res.status(400).json({ error: "orderedIds must be an array" });
-      }
-      await storage.reorderExhibitions(orderedIds);
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to reorder exhibitions" });
-    }
-  });
-
-  app.get("/api/projects", async (req, res) => {
-    try {
-      const items = await storage.getProjects();
-      res.json(items);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch projects" });
-    }
-  });
-
-  app.post("/api/projects", async (req, res) => {
-    try {
-      const parseResult = insertProjectSchema.safeParse(req.body);
-      if (!parseResult.success) {
-        return res.status(400).json({ error: "Invalid project data", details: parseResult.error.errors });
-      }
-      const project = await storage.createProject(parseResult.data);
-      res.status(201).json(project);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to create project" });
-    }
-  });
-
-  app.patch("/api/projects/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const parseResult = updateProjectSchema.safeParse(req.body);
-      if (!parseResult.success) {
-        return res.status(400).json({ error: "Invalid update data", details: parseResult.error.errors });
-      }
-      const updated = await storage.updateProject(id, parseResult.data);
-      if (!updated) {
-        return res.status(404).json({ error: "Project not found" });
-      }
-      res.json(updated);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update project" });
-    }
-  });
-
-  app.delete("/api/projects/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const deleted = await storage.deleteProject(id);
-      if (!deleted) {
-        return res.status(404).json({ error: "Project not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete project" });
-    }
-  });
-
-  app.post("/api/projects/reorder", async (req, res) => {
-    try {
-      const { orderedIds } = req.body;
-      if (!Array.isArray(orderedIds)) {
-        return res.status(400).json({ error: "orderedIds must be an array" });
-      }
-      await storage.reorderProjects(orderedIds);
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to reorder projects" });
-    }
-  });
-
-  app.post("/api/analytics/pageview", async (req, res) => {
-    try {
-      const { page, referrer } = req.body;
-      const userAgent = req.headers["user-agent"] || "";
-      await storage.recordPageView({ 
-        page: page || "/", 
-        userAgent: userAgent.substring(0, 200),
-        referrer: referrer?.substring(0, 500) || ""
-      });
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to record page view" });
-    }
-  });
-
-  app.get("/api/analytics/stats", async (req, res) => {
-    try {
-      const [stats, total, last7Days, last30Days] = await Promise.all([
-        storage.getPageViewStats(),
-        storage.getTotalPageViews(),
-        storage.getRecentPageViews(7),
-        storage.getRecentPageViews(30),
-      ]);
-      res.json({ stats, total, last7Days, last30Days });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch analytics" });
-    }
-  });
-
-  return httpServer;
+  recordPageView(data: InsertPageView): Promise<PageView>;
+  getPageViewStats(): Promise<{ page: string; views: number }[]>;
+  getTotalPageViews(): Promise<number>;
+  getRecentPageViews(days: number): Promise<number>;
 }
+
+export class DatabaseStorage implements IStorage {
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  async getSlideshowImages(): Promise<SlideshowImage[]> {
+    return await db.select().from(slideshowImages).orderBy(asc(slideshowImages.displayOrder));
+  }
+
+  async getSlideshowImage(id: string): Promise<SlideshowImage | undefined> {
+    const [image] = await db.select().from(slideshowImages).where(eq(slideshowImages.id, id));
+    return image || undefined;
+  }
+
+  async createSlideshowImage(image: InsertSlideshowImage): Promise<SlideshowImage> {
+    const [newImage] = await db
+      .insert(slideshowImages)
+      .values(image)
+      .returning();
+    return newImage;
+  }
+
+  async updateSlideshowImage(id: string, image: Partial<InsertSlideshowImage>): Promise<SlideshowImage | undefined> {
+    const [updated] = await db
+      .update(slideshowImages)
+      .set(image)
+      .where(eq(slideshowImages.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteSlideshowImage(id: string): Promise<boolean> {
+    const result = await db.delete(slideshowImages).where(eq(slideshowImages.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getSlideshowImageCount(): Promise<number> {
+    const images = await db.select().from(slideshowImages);
+    return images.length;
+  }
+
+  async reorderSlideshowImages(orderedIds: string[]): Promise<void> {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db
+        .update(slideshowImages)
+        .set({ displayOrder: i })
+        .where(eq(slideshowImages.id, orderedIds[i]));
+    }
+  }
+
+  async getSetting(key: string): Promise<string | undefined> {
+    const [setting] = await db.select().from(siteSettings).where(eq(siteSettings.key, key));
+    return setting?.value;
+  }
+
+  async setSetting(key: string, value: string): Promise<SiteSetting> {
+    const [existing] = await db.select().from(siteSettings).where(eq(siteSettings.key, key));
+    if (existing) {
+      const [updated] = await db
+        .update(siteSettings)
+        .set({ value })
+        .where(eq(siteSettings.key, key))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(siteSettings)
+        .values({ key, value })
+        .returning();
+      return created;
+    }
+  }
+
+  async getExhibitions(): Promise<Exhibition[]> {
+    return await db.select().from(exhibitions).orderBy(desc(exhibitions.displayOrder));
+  }
+
+  async getExhibition(id: string): Promise<Exhibition | undefined> {
+    const [exhibition] = await db.select().from(exhibitions).where(eq(exhibitions.id, id));
+    return exhibition || undefined;
+  }
+
+  async createExhibition(exhibition: InsertExhibition): Promise<Exhibition> {
+    const [newExhibition] = await db
+      .insert(exhibitions)
+      .values(exhibition)
+      .returning();
+    return newExhibition;
+  }
+
+  async updateExhibition(id: string, exhibition: Partial<InsertExhibition>): Promise<Exhibition | undefined> {
+    const [updated] = await db
+      .update(exhibitions)
+      .set(exhibition)
+      .where(eq(exhibitions.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteExhibition(id: string): Promise<boolean> {
+    const result = await db.delete(exhibitions).where(eq(exhibitions.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getExhibitionCount(): Promise<number> {
+    const items = await db.select().from(exhibitions);
+    return items.length;
+  }
+
+  async reorderExhibitions(orderedIds: string[]): Promise<void> {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db
+        .update(exhibitions)
+        .set({ displayOrder: i })
+        .where(eq(exhibitions.id, orderedIds[i]));
+    }
+  }
+
+  async getProjects(): Promise<Project[]> {
+    return await db.select().from(projects).orderBy(asc(projects.displayOrder));
+  }
+
+  async getProject(id: string): Promise<Project | undefined> {
+    const [project] = await db.select().from(projects).where(eq(projects.id, id));
+    return project || undefined;
+  }
+
+  async createProject(insertProject: InsertProject): Promise<Project> {
+    const [project] = await db
+      .insert(projects)
+      .values(insertProject)
+      .returning();
+    return project;
+  }
+
+  async updateProject(id: string, updateData: Partial<InsertProject>): Promise<Project | undefined> {
+    const [updated] = await db
+      .update(projects)
+      .set(updateData)
+      .where(eq(projects.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteProject(id: string): Promise<boolean> {
+    const result = await db.delete(projects).where(eq(projects.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async reorderProjects(orderedIds: string[]): Promise<void> {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db
+        .update(projects)
+        .set({ displayOrder: i })
+        .where(eq(projects.id, orderedIds[i]));
+    }
+  }
+
+  async recordPageView(data: InsertPageView): Promise<PageView> {
+    const [view] = await db
+      .insert(pageViews)
+      .values(data)
+      .returning();
+    return view;
+  }
+
+  async getPageViewStats(): Promise<{ page: string; views: number }[]> {
+    const result = await db
+      .select({
+        page: pageViews.page,
+        views: sql<number>`count(*)::int`,
+      })
+      .from(pageViews)
+      .groupBy(pageViews.page)
+      .orderBy(desc(sql`count(*)`));
+    return result;
+  }
+
+  async getTotalPageViews(): Promise<number> {
+    const result = await db.select().from(pageViews);
+    return result.length;
+  }
+
+  async getRecentPageViews(days: number): Promise<number> {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const result = await db
+      .select()
+      .from(pageViews)
+      .where(gte(pageViews.visitedAt, cutoff));
+    return result.length;
+  }
+}
+
+export const storage = new DatabaseStorage();
