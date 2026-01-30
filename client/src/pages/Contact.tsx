@@ -1,19 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { FloatingNav } from "@/components/FloatingNav";
 import { EnvelopeParticles, useEnvelopeParticles } from "@/components/EnvelopeParticles";
-import { useState } from "react";
 
 export default function Contact() {
   const { particles, triggerParticles } = useEnvelopeParticles();
-  const [particleOrigin, setParticleOrigin] = useState({ x: 0, y: 0 });
 
   const handleLinkHover = (e: React.MouseEvent) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-    setParticleOrigin({ x: centerX, y: centerY });
     triggerParticles(centerX, centerY);
   };
+
   const { data: emailData } = useQuery<{ value: string | null }>({
     queryKey: ["/api/settings/contactEmail"],
     queryFn: async () => {
@@ -38,6 +36,7 @@ export default function Contact() {
   return (
     <div className="min-h-screen p-8 flex flex-col relative">
       <FloatingNav />
+      <EnvelopeParticles particles={particles} />
 
       <header className="fixed top-4 left-4 z-10">
         <h1 className="text-xl font-bold font-sans lowercase border-b border-black inline-block">
@@ -52,7 +51,7 @@ export default function Contact() {
           <p>
             <a
               href={`mailto:${email}`}
-              className="underline hover:no-underline"
+              className="underline hover:no-underline hover:text-[#FF00FF] transition-colors"
               data-testid="link-email"
               onMouseEnter={handleLinkHover}
             >
@@ -64,7 +63,7 @@ export default function Contact() {
               href={`https://instagram.com/${instagram.replace('@', '')}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="underline hover:no-underline"
+              className="underline hover:no-underline hover:text-[#FF00FF] transition-colors"
               data-testid="link-instagram"
               onMouseEnter={handleLinkHover}
             >
@@ -72,11 +71,6 @@ export default function Contact() {
             </a>
           </p>
         </div>
-        <EnvelopeParticles 
-          particles={particles} 
-          originX={particleOrigin.x} 
-          originY={particleOrigin.y} 
-        />
       </main>
 
       <footer className="fixed bottom-4 left-0 right-0 text-center">
