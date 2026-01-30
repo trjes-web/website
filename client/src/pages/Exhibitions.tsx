@@ -1,3 +1,5 @@
+// FILE: client/src/pages/Exhibitions.tsx
+
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FloatingNav } from "@/components/FloatingNav";
@@ -63,6 +65,7 @@ export default function Exhibitions() {
           <div className="space-y-16">
             {filteredExhibitions.map((exhibition) => {
               const images = (exhibition.images as { url: string; caption?: string }[]) || [];
+              const links = (exhibition.links as { url: string; text: string }[]) || [];
               return (
                 <article key={exhibition.id} className="border-b border-black pb-12" data-testid={`exhibition-${exhibition.id}`}>
                   <div className="mb-6">
@@ -86,16 +89,20 @@ export default function Exhibitions() {
                     </div>
                   )}
 
-                  {exhibition.floorPlanUrl && (
-                    <a
-                      href={exhibition.floorPlanUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-mono text-xs lowercase underline hover:no-underline inline-block"
-                      data-testid={`link-floorplan-${exhibition.id}`}
-                    >
-                      view floor plan / text →
-                    </a>
+                  {links.length > 0 && (
+                    <div className="flex flex-wrap gap-4">
+                      {links.map((link, idx) => (
+                        <a
+                          key={idx}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-xs lowercase underline hover:no-underline inline-block"
+                        >
+                          {link.text || "link"} →
+                        </a>
+                      ))}
+                    </div>
                   )}
                 </article>
               );
