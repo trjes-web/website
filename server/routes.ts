@@ -19,6 +19,7 @@ const updateExhibitionSchema = z.object({
   location: z.string().optional(),
   floorPlanUrl: z.string().optional(),
   displayOrder: z.number().int().min(0).optional(),
+  visible: z.boolean().optional(),
 });
 
 const updateProjectSchema = z.object({
@@ -27,6 +28,7 @@ const updateProjectSchema = z.object({
   images: z.array(z.object({ url: z.string(), caption: z.string().optional() })).optional(),
   date: z.string().optional(),
   displayOrder: z.number().int().min(0).optional(),
+  visible: z.boolean().optional(),
 });
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "artist2024";
