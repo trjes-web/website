@@ -61,9 +61,7 @@ export async function registerRoutes(
   app.post("/api/slideshow", async (req, res) => {
     try {
       const count = await storage.getSlideshowImageCount();
-      if (count >= 5) {
-        return res.status(400).json({ error: "Maximum 5 images allowed" });
-      }
+
 
       const parsed = insertSlideshowImageSchema.safeParse(req.body);
       if (!parsed.success) {
