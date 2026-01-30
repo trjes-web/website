@@ -127,7 +127,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getExhibitions(): Promise<Exhibition[]> {
-    return await db.select().from(exhibitions).orderBy(desc(exhibitions.displayOrder));
+    return await db.select().from(exhibitions).orderBy(asc(exhibitions.displayOrder));
   }
 
   async getExhibition(id: string): Promise<Exhibition | undefined> {
