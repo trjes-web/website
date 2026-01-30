@@ -1,14 +1,15 @@
+// FILE: server/routes.ts
+
 import type { Express } from "express";
-import { createServer, type Server } from "http";
+import type { Server } from "http";
 import { storage } from "./storage";
-import { insertSlideshowImageSchema, insertExhibitionSchema, insertProjectSchema } from "@shared/schema";
+import { insertSlideshowImageSchema } from "@shared/schema";
 import { z } from "zod";
-import { registerUploadRoutes } from "./upload-routes";
 
 const updateSlideshowImageSchema = z.object({
   imageUrl: z.string().optional(),
   altText: z.string().optional(),
-  displayOrder: z.number().int().min(0).optional(),
+  displayOrder: z.number().optional(),
 });
 
 const updateExhibitionSchema = z.object({
@@ -18,7 +19,8 @@ const updateExhibitionSchema = z.object({
   date: z.string().optional(),
   location: z.string().optional(),
   floorPlanUrl: z.string().optional(),
-  displayOrder: z.number().int().min(0).optional(),
+  links: z.array(z.object({ url: z.string(), text: z.string() })).optional(),
+  displayOrder: z.number().optional(),
   visible: z.boolean().optional(),
 });
 
@@ -27,22 +29,17 @@ const updateProjectSchema = z.object({
   description: z.string().optional(),
   images: z.array(z.object({ url: z.string(), caption: z.string().optional() })).optional(),
   date: z.string().optional(),
-  displayOrder: z.number().int().min(0).optional(),
+  links: z.array(z.object({ url: z.string(), text: z.string() })).optional(),
+  displayOrder: z.number().optional(),
   visible: z.boolean().optional(),
 });
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "artist2024";
-
-export async function registerRoutes(
-  httpServer: Server,
-  app: Express
-): Promise<Server> {
-  
-  registerUploadRoutes(app);
-
-  app.post("/api/admin/verify", (req, res) => {
+export async function registerRoutes(server: Server, app: Express): Promise<void> {
+  app.post("/api/admin/verify", async (req, res) => {
     const { password } = req.body;
-    if (password === ADMIN_PASSWORD) {
+    const adminPassword = process.env.ADMIN_PASSWORD || "artist2024";
+    
+    if (password === adminPassword) {
       res.json({ success: true });
     } else {
       res.status(401).json({ error: "Invalid password" });
@@ -60,14 +57,11 @@ export async function registerRoutes(
 
   app.post("/api/slideshow", async (req, res) => {
     try {
-      const count = await storage.getSlideshowImageCount();
-
-
       const parsed = insertSlideshowImageSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.message });
+        return res.status(400).json({ error: "Invalid data" });
       }
-
+      
       const image = await storage.createSlideshowImage(parsed.data);
       res.status(201).json(image);
     } catch (error) {
@@ -81,9 +75,9 @@ export async function registerRoutes(
       
       const parsed = updateSlideshowImageSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.message });
+        return res.status(400).json({ error: "Invalid data" });
       }
-
+      
       const image = await storage.updateSlideshowImage(id, parsed.data);
       if (!image) {
         return res.status(404).json({ error: "Image not found" });
@@ -102,12 +96,11 @@ export async function registerRoutes(
       
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.message });
+        return res.status(400).json({ error: "Invalid data" });
       }
 
       await storage.reorderSlideshowImages(parsed.data.orderedIds);
-      const images = await storage.getSlideshowImages();
-      res.json(images);
+      res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to reorder images" });
     }
@@ -128,21 +121,25 @@ export async function registerRoutes(
 
   app.get("/api/settings/:key", async (req, res) => {
     try {
-      const value = await storage.getSetting(req.params.key);
-      res.json({ value: value || null });
+      const { key } = req.params;
+      const value = await storage.getSetting(key);
+      res.json({ value });
     } catch (error) {
-      res.status(500).json({ error: "Failed to get setting" });
+      res.status(500).json({ error: "Failed to fetch setting" });
     }
   });
 
-  app.post("/api/settings/:key", async (req, res) => {
+  app.put("/api/settings/:key", async (req, res) => {
     try {
+      const { key } = req.params;
       const { value } = req.body;
+      
       if (typeof value !== "string") {
         return res.status(400).json({ error: "Value must be a string" });
       }
-      const setting = await storage.setSetting(req.params.key, value);
-      res.json(setting);
+      
+      await storage.setSetting(key, value);
+      res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to save setting" });
     }
@@ -150,8 +147,9 @@ export async function registerRoutes(
 
   app.get("/api/exhibitions", async (req, res) => {
     try {
-      const items = await storage.getExhibitions();
-      res.json(items);
+      const includeHidden = req.query.includeHidden === 'true';
+      const exhibitions = await storage.getExhibitions(includeHidden);
+      res.json(exhibitions);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch exhibitions" });
     }
@@ -159,12 +157,7 @@ export async function registerRoutes(
 
   app.post("/api/exhibitions", async (req, res) => {
     try {
-      const parsed = insertExhibitionSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.message });
-      }
-
-      const exhibition = await storage.createExhibition(parsed.data);
+      const exhibition = await storage.createExhibition(req.body);
       res.status(201).json(exhibition);
     } catch (error) {
       res.status(500).json({ error: "Failed to create exhibition" });
@@ -174,12 +167,11 @@ export async function registerRoutes(
   app.patch("/api/exhibitions/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      
       const parsed = updateExhibitionSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.message });
+        return res.status(400).json({ error: "Invalid data" });
       }
-
+      
       const exhibition = await storage.updateExhibition(id, parsed.data);
       if (!exhibition) {
         return res.status(404).json({ error: "Exhibition not found" });
@@ -187,6 +179,24 @@ export async function registerRoutes(
       res.json(exhibition);
     } catch (error) {
       res.status(500).json({ error: "Failed to update exhibition" });
+    }
+  });
+
+  app.post("/api/exhibitions/reorder", async (req, res) => {
+    try {
+      const schema = z.object({
+        orderedIds: z.array(z.string()),
+      });
+      
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data" });
+      }
+
+      await storage.reorderExhibitions(parsed.data.orderedIds);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reorder exhibitions" });
     }
   });
 
@@ -203,23 +213,11 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/exhibitions/reorder", async (req, res) => {
-    try {
-      const { orderedIds } = req.body;
-      if (!Array.isArray(orderedIds)) {
-        return res.status(400).json({ error: "orderedIds must be an array" });
-      }
-      await storage.reorderExhibitions(orderedIds);
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to reorder exhibitions" });
-    }
-  });
-
   app.get("/api/projects", async (req, res) => {
     try {
-      const items = await storage.getProjects();
-      res.json(items);
+      const includeHidden = req.query.includeHidden === 'true';
+      const projects = await storage.getProjects(includeHidden);
+      res.json(projects);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch projects" });
     }
@@ -227,11 +225,7 @@ export async function registerRoutes(
 
   app.post("/api/projects", async (req, res) => {
     try {
-      const parseResult = insertProjectSchema.safeParse(req.body);
-      if (!parseResult.success) {
-        return res.status(400).json({ error: "Invalid project data", details: parseResult.error.errors });
-      }
-      const project = await storage.createProject(parseResult.data);
+      const project = await storage.createProject(req.body);
       res.status(201).json(project);
     } catch (error) {
       res.status(500).json({ error: "Failed to create project" });
@@ -241,17 +235,36 @@ export async function registerRoutes(
   app.patch("/api/projects/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const parseResult = updateProjectSchema.safeParse(req.body);
-      if (!parseResult.success) {
-        return res.status(400).json({ error: "Invalid update data", details: parseResult.error.errors });
+      const parsed = updateProjectSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data" });
       }
-      const updated = await storage.updateProject(id, parseResult.data);
-      if (!updated) {
+      
+      const project = await storage.updateProject(id, parsed.data);
+      if (!project) {
         return res.status(404).json({ error: "Project not found" });
       }
-      res.json(updated);
+      res.json(project);
     } catch (error) {
       res.status(500).json({ error: "Failed to update project" });
+    }
+  });
+
+  app.post("/api/projects/reorder", async (req, res) => {
+    try {
+      const schema = z.object({
+        orderedIds: z.array(z.string()),
+      });
+      
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data" });
+      }
+
+      await storage.reorderProjects(parsed.data.orderedIds);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reorder projects" });
     }
   });
 
@@ -268,28 +281,10 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/projects/reorder", async (req, res) => {
-    try {
-      const { orderedIds } = req.body;
-      if (!Array.isArray(orderedIds)) {
-        return res.status(400).json({ error: "orderedIds must be an array" });
-      }
-      await storage.reorderProjects(orderedIds);
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to reorder projects" });
-    }
-  });
-
   app.post("/api/analytics/pageview", async (req, res) => {
     try {
-      const { page, referrer } = req.body;
-      const userAgent = req.headers["user-agent"] || "";
-      await storage.recordPageView({ 
-        page: page || "/", 
-        userAgent: userAgent.substring(0, 200),
-        referrer: referrer?.substring(0, 500) || ""
-      });
+      const { page, userAgent, referrer } = req.body;
+      await storage.recordPageView({ page, userAgent, referrer });
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to record page view" });
@@ -298,17 +293,10 @@ export async function registerRoutes(
 
   app.get("/api/analytics/stats", async (req, res) => {
     try {
-      const [stats, total, last7Days, last30Days] = await Promise.all([
-        storage.getPageViewStats(),
-        storage.getTotalPageViews(),
-        storage.getRecentPageViews(7),
-        storage.getRecentPageViews(30),
-      ]);
-      res.json({ stats, total, last7Days, last30Days });
+      const stats = await storage.getAnalyticsStats();
+      res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch analytics" });
     }
   });
-
-  return httpServer;
 }
