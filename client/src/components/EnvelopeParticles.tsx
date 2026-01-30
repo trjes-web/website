@@ -6,19 +6,21 @@ interface Particle {
   y: number;
   vx: number;
   vy: number;
+  originX: number;
+  originY: number;
 }
 
 const ENVELOPE_SVG = `
 <svg width="12" height="10" viewBox="0 0 12 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="0" y="0" width="12" height="10" fill="#0000EE"/>
+  <rect x="0" y="0" width="12" height="10" fill="#FF00FF"/>
   <rect x="1" y="1" width="10" height="8" fill="white"/>
-  <rect x="2" y="2" width="1" height="1" fill="#0000EE"/>
-  <rect x="3" y="3" width="1" height="1" fill="#0000EE"/>
-  <rect x="4" y="4" width="1" height="1" fill="#0000EE"/>
-  <rect x="5" y="5" width="2" height="1" fill="#0000EE"/>
-  <rect x="7" y="4" width="1" height="1" fill="#0000EE"/>
-  <rect x="8" y="3" width="1" height="1" fill="#0000EE"/>
-  <rect x="9" y="2" width="1" height="1" fill="#0000EE"/>
+  <rect x="2" y="2" width="1" height="1" fill="#FF00FF"/>
+  <rect x="3" y="3" width="1" height="1" fill="#FF00FF"/>
+  <rect x="4" y="4" width="1" height="1" fill="#FF00FF"/>
+  <rect x="5" y="5" width="2" height="1" fill="#FF00FF"/>
+  <rect x="7" y="4" width="1" height="1" fill="#FF00FF"/>
+  <rect x="8" y="3" width="1" height="1" fill="#FF00FF"/>
+  <rect x="9" y="2" width="1" height="1" fill="#FF00FF"/>
 </svg>
 `;
 
@@ -45,6 +47,8 @@ export function useEnvelopeParticles() {
         y: 0,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
+        originX: centerX,
+        originY: centerY,
       });
     }
     
@@ -61,23 +65,20 @@ export function useEnvelopeParticles() {
 
 interface EnvelopeParticlesProps {
   particles: Particle[];
-  originX: number;
-  originY: number;
 }
 
-export function EnvelopeParticles({ particles, originX, originY }: EnvelopeParticlesProps) {
+export function EnvelopeParticles({ particles }: EnvelopeParticlesProps) {
   if (particles.length === 0) return null;
 
   return (
-    <div 
-      className="fixed pointer-events-none z-50"
-      style={{ left: originX, top: originY }}
-    >
+    <>
       {particles.map((particle) => (
         <div
           key={particle.id}
-          className="absolute"
+          className="fixed pointer-events-none z-50"
           style={{
+            left: particle.originX,
+            top: particle.originY,
             animation: "envelopeFly 1s ease-out forwards",
             "--vx": `${particle.vx}px`,
             "--vy": `${particle.vy}px`,
@@ -95,15 +96,15 @@ export function EnvelopeParticles({ particles, originX, originY }: EnvelopeParti
       <style>{`
         @keyframes envelopeFly {
           0% {
-            transform: translate(0, 0);
+            transform: translate(-6px, -5px);
             opacity: 1;
           }
           100% {
-            transform: translate(var(--vx), var(--vy));
+            transform: translate(calc(var(--vx) - 6px), calc(var(--vy) - 5px));
             opacity: 0;
           }
         }
       `}</style>
-    </div>
+    </>
   );
 }
