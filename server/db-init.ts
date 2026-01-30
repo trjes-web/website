@@ -1,10 +1,11 @@
+// FILE: server/db-init.ts
+
 import { pool } from "./db";
 
 export async function initializeDatabase() {
   console.log("Initializing database...");
   
   try {
-    // Only create tables if they don't exist - NO dropping!
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -32,6 +33,7 @@ export async function initializeDatabase() {
         date TEXT DEFAULT '',
         location TEXT DEFAULT '',
         floor_plan_url TEXT DEFAULT '',
+        links JSONB DEFAULT '[]',
         display_order INTEGER NOT NULL DEFAULT 0,
         visible BOOLEAN NOT NULL DEFAULT true
       );
@@ -42,6 +44,7 @@ export async function initializeDatabase() {
         description TEXT DEFAULT '',
         images JSONB DEFAULT '[]',
         date TEXT DEFAULT '',
+        links JSONB DEFAULT '[]',
         display_order INTEGER NOT NULL DEFAULT 0,
         visible BOOLEAN NOT NULL DEFAULT true
       );
@@ -55,7 +58,6 @@ export async function initializeDatabase() {
       );
     `);
 
-    // Add missing columns to existing tables (safe - won't error if already exists)
     await pool.query(`
       DO $$ 
       BEGIN 
@@ -64,6 +66,12 @@ export async function initializeDatabase() {
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'visible') THEN
           ALTER TABLE projects ADD COLUMN visible BOOLEAN NOT NULL DEFAULT true;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'exhibitions' AND column_name = 'links') THEN
+          ALTER TABLE exhibitions ADD COLUMN links JSONB DEFAULT '[]';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'links') THEN
+          ALTER TABLE projects ADD COLUMN links JSONB DEFAULT '[]';
         END IF;
       END $$;
     `);
