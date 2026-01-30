@@ -1,7 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { FloatingNav } from "@/components/FloatingNav";
+import { EnvelopeParticles, useEnvelopeParticles } from "@/components/EnvelopeParticles";
+import { useState } from "react";
 
 export default function Contact() {
+  const { particles, triggerParticles } = useEnvelopeParticles();
+  const [particleOrigin, setParticleOrigin] = useState({ x: 0, y: 0 });
+
+  const handleLinkHover = (e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    setParticleOrigin({ x: centerX, y: centerY });
+    triggerParticles(centerX, centerY);
+  };
   const { data: emailData } = useQuery<{ value: string | null }>({
     queryKey: ["/api/settings/contactEmail"],
     queryFn: async () => {
@@ -42,6 +54,7 @@ export default function Contact() {
               href={`mailto:${email}`}
               className="underline hover:no-underline"
               data-testid="link-email"
+              onMouseEnter={handleLinkHover}
             >
               {email}
             </a>
@@ -53,11 +66,17 @@ export default function Contact() {
               rel="noopener noreferrer"
               className="underline hover:no-underline"
               data-testid="link-instagram"
+              onMouseEnter={handleLinkHover}
             >
               @{instagram.replace('@', '')}
             </a>
           </p>
         </div>
+        <EnvelopeParticles 
+          particles={particles} 
+          originX={particleOrigin.x} 
+          originY={particleOrigin.y} 
+        />
       </main>
 
       <footer className="fixed bottom-4 left-0 right-0 text-center">
