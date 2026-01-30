@@ -22,7 +22,11 @@ export default function Admin() {
   const [newsSaved, setNewsSaved] = useState(false);
   const [enabledPages, setEnabledPages] = useState<string[]>(["portfolio", "cv", "projects", "contact", "archive"]);
   const [pagesSaved, setPagesSaved] = useState(false);
+  const [faviconUrl, setFaviconUrl] = useState("");
+  const [faviconSaved, setFaviconSaved] = useState(false);
+  const [isFaviconUploading, setIsFaviconUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
 
   const allPages = [
     { id: "portfolio", label: "portfolio" },
@@ -127,6 +131,16 @@ export default function Admin() {
     enabled: isAuthenticated,
   });
 
+  const { data: faviconData } = useQuery<{ value: string | null }>({
+    queryKey: ["/api/settings/faviconUrl"],
+    queryFn: async () => {
+      const res = await fetch("/api/settings/faviconUrl");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: isAuthenticated,
+  });
+
   useEffect(() => {
     if (portfolioData?.value) {
       setPortfolioLink(portfolioData.value);
@@ -172,6 +186,12 @@ export default function Admin() {
       }
     }
   }, [enabledPagesData]);
+
+  useEffect(() => {
+    if (faviconData?.value) {
+      setFaviconUrl(faviconData.value);
+    }
+  }, [faviconData]);
 
   const savePortfolioLink = useMutation({
     mutationFn: async (value: string) => {
@@ -279,6 +299,23 @@ export default function Admin() {
       queryClient.invalidateQueries({ queryKey: ["/api/settings/enabledPages"] });
       setPagesSaved(true);
       setTimeout(() => setPagesSaved(false), 2000);
+    },
+  });
+
+  const saveFavicon = useMutation({
+    mutationFn: async (url: string) => {
+      const res = await fetch("/api/settings/faviconUrl", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value: url }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/faviconUrl"] });
+      setFaviconSaved(true);
+      setTimeout(() => setFaviconSaved(false), 2000);
     },
   });
 
@@ -409,6 +446,33 @@ export default function Admin() {
     savePortfolioLink.mutate(portfolioLink);
   };
 
+  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsFaviconUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const uploadRes = await fetch("/api/uploads/image", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadRes.ok) throw new Error("Failed to upload file");
+      const { url } = await uploadRes.json();
+      
+      setFaviconUrl(url);
+      saveFavicon.mutate(url);
+    } catch (err) {
+      console.error("Favicon upload error:", err);
+    } finally {
+      setIsFaviconUploading(false);
+      if (faviconInputRef.current) faviconInputRef.current.value = "";
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen p-8 flex flex-col relative">
@@ -487,6 +551,45 @@ export default function Admin() {
               {savePortfolioLink.isPending ? "saving..." : portfolioSaved ? "saved!" : "save link"}
             </button>
           </form>
+        </div>
+
+        <div className="border border-black p-6 w-full bg-white mb-8">
+          <div className="font-mono text-xs uppercase mb-4 bg-black text-white inline-block px-2 py-1">
+            admin / favicon
+          </div>
+          <p className="font-mono text-xs lowercase mb-4 text-gray-600">
+            upload a custom favicon (browser tab icon). recommended: 32x32 or 64x64 pixels, .ico or .png format.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <label className="font-mono text-xs block mb-1 lowercase">upload favicon:</label>
+              <input
+                ref={faviconInputRef}
+                type="file"
+                accept="image/*,.ico"
+                onChange={handleFaviconUpload}
+                disabled={isFaviconUploading}
+                className="w-full border border-black p-2 font-mono text-sm focus:outline-none file:mr-4 file:py-1 file:px-2 file:border file:border-black file:bg-white file:font-mono file:text-xs file:lowercase file:cursor-pointer hover:file:bg-black hover:file:text-white disabled:opacity-50"
+                data-testid="input-favicon-upload"
+              />
+            </div>
+            {isFaviconUploading && (
+              <p className="font-mono text-xs lowercase text-gray-600">uploading...</p>
+            )}
+            {faviconUrl && (
+              <div className="flex items-center gap-4">
+                <img 
+                  src={faviconUrl} 
+                  alt="Current favicon" 
+                  className="w-8 h-8 border border-black"
+                  style={{ imageRendering: "pixelated" }}
+                />
+                <span className="font-mono text-xs lowercase text-gray-600">
+                  {faviconSaved ? "saved!" : "current favicon"}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="border border-black p-6 w-full bg-white mb-8">
