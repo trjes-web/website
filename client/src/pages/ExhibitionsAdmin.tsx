@@ -1,3 +1,5 @@
+// FILE: client/src/pages/ExhibitionsAdmin.tsx
+
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Exhibition } from "@shared/schema";
@@ -5,6 +7,11 @@ import type { Exhibition } from "@shared/schema";
 interface ExhibitionImage {
   url: string;
   caption?: string;
+}
+
+interface ExhibitionLink {
+  url: string;
+  text: string;
 }
 
 export default function ExhibitionsAdmin() {
@@ -21,13 +28,14 @@ export default function ExhibitionsAdmin() {
     date: "",
     location: "",
     floorPlanUrl: "",
+    links: [] as ExhibitionLink[],
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: exhibitions = [], isLoading } = useQuery<Exhibition[]>({
     queryKey: ["/api/exhibitions"],
     queryFn: async () => {
-      const res = await fetch("/api/exhibitions");
+      const res = await fetch("/api/exhibitions?includeHidden=true");
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },
@@ -141,6 +149,7 @@ export default function ExhibitionsAdmin() {
       date: "",
       location: "",
       floorPlanUrl: "",
+      links: [],
     });
     setEditingId(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -153,12 +162,12 @@ export default function ExhibitionsAdmin() {
     setIsUploading(true);
     try {
       for (const file of Array.from(files)) {
-        const formData = new FormData();
-        formData.append("file", file);
+        const formDataUpload = new FormData();
+        formDataUpload.append("file", file);
 
         const uploadRes = await fetch("/api/uploads/image", {
           method: "POST",
-          body: formData,
+          body: formDataUpload,
         });
 
         if (!uploadRes.ok) throw new Error("Failed to upload file");
@@ -199,6 +208,24 @@ export default function ExhibitionsAdmin() {
     setFormData(prev => ({ ...prev, images: newImages }));
   };
 
+  const addLink = () => {
+    setFormData(prev => ({ ...prev, links: [...prev.links, { url: "", text: "" }] }));
+  };
+
+  const updateLink = (index: number, field: "url" | "text", value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      links: prev.links.map((link, i) => i === index ? { ...link, [field]: value } : link),
+    }));
+  };
+
+  const removeLink = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      links: prev.links.filter((_, i) => i !== index),
+    }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title.trim()) return;
@@ -213,6 +240,7 @@ export default function ExhibitionsAdmin() {
   const startEdit = (exhibition: Exhibition) => {
     setEditingId(exhibition.id);
     const images = (exhibition.images as ExhibitionImage[]) || [];
+    const links = (exhibition.links as ExhibitionLink[]) || [];
     setFormData({
       title: exhibition.title,
       description: exhibition.description || "",
@@ -220,6 +248,7 @@ export default function ExhibitionsAdmin() {
       date: exhibition.date || "",
       location: exhibition.location || "",
       floorPlanUrl: exhibition.floorPlanUrl || "",
+      links: links,
     });
   };
 
@@ -393,16 +422,39 @@ export default function ExhibitionsAdmin() {
             </div>
 
             <div>
-              <label className="font-mono text-xs block mb-1 lowercase">floor plan / text link (url)</label>
-              <input
-                type="url"
-                value={formData.floorPlanUrl}
-                onChange={(e) => setFormData(prev => ({ ...prev, floorPlanUrl: e.target.value }))}
-                placeholder="https://..."
-                className="w-full border border-black p-2 font-mono text-sm focus:outline-none"
-                data-testid="input-floorplan"
-              />
-              <p className="font-mono text-[10px] text-gray-500 mt-1">link to pdf, google doc, or external document</p>
+              <label className="font-mono text-xs block mb-1 lowercase">links (custom text + url)</label>
+              {formData.links.map((link, idx) => (
+                <div key={idx} className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={link.text}
+                    onChange={(e) => updateLink(idx, "text", e.target.value)}
+                    placeholder="link text (e.g. floor plan)"
+                    className="flex-1 border border-black p-2 font-mono text-sm focus:outline-none"
+                  />
+                  <input
+                    type="url"
+                    value={link.url}
+                    onChange={(e) => updateLink(idx, "url", e.target.value)}
+                    placeholder="https://..."
+                    className="flex-1 border border-black p-2 font-mono text-sm focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeLink(idx)}
+                    className="border border-red-600 text-red-600 px-3 hover:bg-red-600 hover:text-white font-mono"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addLink}
+                className="border border-black px-3 py-1 font-mono text-xs hover:bg-black hover:text-white"
+              >
+                + add link
+              </button>
             </div>
 
             <div className="flex gap-2">
