@@ -1,3 +1,5 @@
+// FILE: client/src/pages/Projects.tsx
+
 import { useQuery } from "@tanstack/react-query";
 import { FloatingNav } from "@/components/FloatingNav";
 import { ImageGallery } from "@/components/ImageGallery";
@@ -34,6 +36,7 @@ export default function Projects() {
           <div className="space-y-16">
             {projects.map((project) => {
               const images = (project.images as { url: string; caption?: string }[]) || [];
+              const links = (project.links as { url: string; text: string }[]) || [];
               return (
                 <article key={project.id} className="border-b border-black pb-12" data-testid={`project-${project.id}`}>
                   <div className="mb-6">
@@ -52,8 +55,24 @@ export default function Projects() {
                   )}
                   
                   {project.description && (
-                    <div className="font-mono text-sm lowercase whitespace-pre-wrap leading-relaxed" data-testid={`text-description-${project.id}`}>
+                    <div className="font-mono text-sm lowercase whitespace-pre-wrap leading-relaxed mb-4" data-testid={`text-description-${project.id}`}>
                       {project.description}
+                    </div>
+                  )}
+
+                  {links.length > 0 && (
+                    <div className="flex flex-wrap gap-4">
+                      {links.map((link, idx) => (
+                        <a
+                          key={idx}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-xs lowercase underline hover:no-underline inline-block"
+                        >
+                          {link.text || "link"} →
+                        </a>
+                      ))}
                     </div>
                   )}
                 </article>
