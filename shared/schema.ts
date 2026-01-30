@@ -1,3 +1,5 @@
+// FILE: shared/schema.ts
+
 import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, integer, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -6,6 +8,11 @@ import { z } from "zod";
 export const exhibitionImageSchema = z.object({
   url: z.string(),
   caption: z.string().optional(),
+});
+
+export const linkSchema = z.object({
+  url: z.string(),
+  text: z.string(),
 });
 
 export const users = pgTable("users", {
@@ -54,6 +61,7 @@ export const exhibitions = pgTable("exhibitions", {
   date: text("date").default(""),
   location: text("location").default(""),
   floorPlanUrl: text("floor_plan_url").default(""),
+  links: jsonb("links").$type<{ url: string; text: string }[]>().default([]),
   displayOrder: integer("display_order").notNull().default(0),
   visible: boolean("visible").notNull().default(true),
 });
@@ -62,6 +70,7 @@ export const insertExhibitionSchema = createInsertSchema(exhibitions).omit({
   id: true,
 }).extend({
   images: z.array(exhibitionImageSchema).optional(),
+  links: z.array(linkSchema).optional(),
 });
 
 export type InsertExhibition = z.infer<typeof insertExhibitionSchema>;
@@ -79,6 +88,7 @@ export const projects = pgTable("projects", {
   description: text("description").default(""),
   images: jsonb("images").$type<{ url: string; caption?: string }[]>().default([]),
   date: text("date").default(""),
+  links: jsonb("links").$type<{ url: string; text: string }[]>().default([]),
   displayOrder: integer("display_order").notNull().default(0),
   visible: boolean("visible").notNull().default(true),
 });
@@ -87,6 +97,7 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
   id: true,
 }).extend({
   images: z.array(projectImageSchema).optional(),
+  links: z.array(linkSchema).optional(),
 });
 
 export type InsertProject = z.infer<typeof insertProjectSchema>;
