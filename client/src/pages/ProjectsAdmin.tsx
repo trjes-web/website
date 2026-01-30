@@ -1,3 +1,5 @@
+// FILE: client/src/pages/ProjectsAdmin.tsx
+
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Project } from "@shared/schema";
@@ -5,6 +7,11 @@ import type { Project } from "@shared/schema";
 interface ProjectImage {
   url: string;
   caption?: string;
+}
+
+interface ProjectLink {
+  url: string;
+  text: string;
 }
 
 export default function ProjectsAdmin() {
@@ -19,13 +26,14 @@ export default function ProjectsAdmin() {
     description: "",
     images: [] as ProjectImage[],
     date: "",
+    links: [] as ProjectLink[],
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
     queryFn: async () => {
-      const res = await fetch("/api/projects");
+      const res = await fetch("/api/projects?includeHidden=true");
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },
@@ -137,6 +145,7 @@ export default function ProjectsAdmin() {
       description: "",
       images: [],
       date: "",
+      links: [],
     });
     setEditingId(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -149,12 +158,12 @@ export default function ProjectsAdmin() {
     setIsUploading(true);
     try {
       for (const file of Array.from(files)) {
-        const formData = new FormData();
-        formData.append("file", file);
+        const formDataUpload = new FormData();
+        formDataUpload.append("file", file);
 
         const uploadRes = await fetch("/api/uploads/image", {
           method: "POST",
-          body: formData,
+          body: formDataUpload,
         });
 
         if (!uploadRes.ok) throw new Error("Failed to upload file");
@@ -195,6 +204,24 @@ export default function ProjectsAdmin() {
     setFormData(prev => ({ ...prev, images: newImages }));
   };
 
+  const addLink = () => {
+    setFormData(prev => ({ ...prev, links: [...prev.links, { url: "", text: "" }] }));
+  };
+
+  const updateLink = (index: number, field: "url" | "text", value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      links: prev.links.map((link, i) => i === index ? { ...link, [field]: value } : link),
+    }));
+  };
+
+  const removeLink = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      links: prev.links.filter((_, i) => i !== index),
+    }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title.trim()) return;
@@ -209,11 +236,13 @@ export default function ProjectsAdmin() {
   const startEdit = (project: Project) => {
     setEditingId(project.id);
     const images = (project.images as ProjectImage[]) || [];
+    const links = (project.links as ProjectLink[]) || [];
     setFormData({
       title: project.title,
       description: project.description || "",
       images: images,
       date: project.date || "",
+      links: links,
     });
   };
 
@@ -374,6 +403,42 @@ export default function ProjectsAdmin() {
               )}
             </div>
 
+            <div>
+              <label className="font-mono text-xs block mb-1 lowercase">links (custom text + url)</label>
+              {formData.links.map((link, idx) => (
+                <div key={idx} className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={link.text}
+                    onChange={(e) => updateLink(idx, "text", e.target.value)}
+                    placeholder="link text (e.g. video)"
+                    className="flex-1 border border-black p-2 font-mono text-sm focus:outline-none"
+                  />
+                  <input
+                    type="url"
+                    value={link.url}
+                    onChange={(e) => updateLink(idx, "url", e.target.value)}
+                    placeholder="https://..."
+                    className="flex-1 border border-black p-2 font-mono text-sm focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeLink(idx)}
+                    className="border border-red-600 text-red-600 px-3 hover:bg-red-600 hover:text-white font-mono"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addLink}
+                className="border border-black px-3 py-1 font-mono text-xs hover:bg-black hover:text-white"
+              >
+                + add link
+              </button>
+            </div>
+
             <div className="flex gap-2">
               <button
                 type="submit"
@@ -486,3 +551,4 @@ export default function ProjectsAdmin() {
     </div>
   );
 }
+
