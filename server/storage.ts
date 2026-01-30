@@ -1,3 +1,5 @@
+// FILE: server/storage.ts
+
 import { users, slideshowImages, siteSettings, exhibitions, projects, pageViews, type User, type InsertUser, type SlideshowImage, type InsertSlideshowImage, type SiteSetting, type Exhibition, type InsertExhibition, type Project, type InsertProject, type InsertPageView, type PageView } from "@shared/schema";
 import { db } from "./db";
 import { eq, asc, desc, sql, gte } from "drizzle-orm";
@@ -18,7 +20,7 @@ export interface IStorage {
   getSetting(key: string): Promise<string | undefined>;
   setSetting(key: string, value: string): Promise<SiteSetting>;
 
-  getExhibitions(): Promise<Exhibition[]>;
+  getExhibitions(includeHidden?: boolean): Promise<Exhibition[]>;
   getExhibition(id: string): Promise<Exhibition | undefined>;
   createExhibition(exhibition: InsertExhibition): Promise<Exhibition>;
   updateExhibition(id: string, exhibition: Partial<InsertExhibition>): Promise<Exhibition | undefined>;
@@ -26,7 +28,7 @@ export interface IStorage {
   getExhibitionCount(): Promise<number>;
   reorderExhibitions(orderedIds: string[]): Promise<void>;
 
-  getProjects(): Promise<Project[]>;
+  getProjects(includeHidden?: boolean): Promise<Project[]>;
   getProject(id: string): Promise<Project | undefined>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, project: Partial<InsertProject>): Promise<Project | undefined>;
@@ -126,8 +128,11 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getExhibitions(): Promise<Exhibition[]> {
-    return await db.select().from(exhibitions).orderBy(asc(exhibitions.displayOrder));
+  async getExhibitions(includeHidden: boolean = false): Promise<Exhibition[]> {
+    if (includeHidden) {
+      return await db.select().from(exhibitions).orderBy(asc(exhibitions.displayOrder));
+    }
+    return await db.select().from(exhibitions).where(eq(exhibitions.visible, true)).orderBy(asc(exhibitions.displayOrder));
   }
 
   async getExhibition(id: string): Promise<Exhibition | undefined> {
@@ -171,8 +176,11 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getProjects(): Promise<Project[]> {
-    return await db.select().from(projects).orderBy(asc(projects.displayOrder));
+  async getProjects(includeHidden: boolean = false): Promise<Project[]> {
+    if (includeHidden) {
+      return await db.select().from(projects).orderBy(asc(projects.displayOrder));
+    }
+    return await db.select().from(projects).where(eq(projects.visible, true)).orderBy(asc(projects.displayOrder));
   }
 
   async getProject(id: string): Promise<Project | undefined> {
