@@ -24,7 +24,7 @@ export default function Admin() {
   const [pagesSaved, setPagesSaved] = useState(false);
   const [faviconUrl, setFaviconUrl] = useState("");
   const [faviconSaved, setFaviconSaved] = useState(false);
-  const [isFaviconUploading, setIsFaviconUploading] = useState(false);
+  const [faviconUploading, setFaviconUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
 
@@ -319,6 +319,32 @@ export default function Admin() {
     },
   });
 
+  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setFaviconUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      const res = await fetch("/api/upload/url", {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      
+      setFaviconUrl(data.url);
+      saveFavicon.mutate(data.url);
+    } catch (error) {
+      console.error("Favicon upload failed:", error);
+    } finally {
+      setFaviconUploading(false);
+    }
+  };
+
   const addImage = useMutation({
     mutationFn: async (data: { imageUrl: string; altText: string; displayOrder: number }) => {
       const res = await fetch("/api/slideshow", {
@@ -446,33 +472,6 @@ export default function Admin() {
     savePortfolioLink.mutate(portfolioLink);
   };
 
-  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsFaviconUploading(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const uploadRes = await fetch("/api/uploads/image", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!uploadRes.ok) throw new Error("Failed to upload file");
-      const { url } = await uploadRes.json();
-      
-      setFaviconUrl(url);
-      saveFavicon.mutate(url);
-    } catch (err) {
-      console.error("Favicon upload error:", err);
-    } finally {
-      setIsFaviconUploading(false);
-      if (faviconInputRef.current) faviconInputRef.current.value = "";
-    }
-  };
-
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen p-8 flex flex-col relative">
@@ -555,45 +554,6 @@ export default function Admin() {
 
         <div className="border border-black p-6 w-full bg-white mb-8">
           <div className="font-mono text-xs uppercase mb-4 bg-black text-white inline-block px-2 py-1">
-            admin / favicon
-          </div>
-          <p className="font-mono text-xs lowercase mb-4 text-gray-600">
-            upload a custom favicon (browser tab icon). recommended: 32x32 or 64x64 pixels, .ico or .png format.
-          </p>
-          <div className="space-y-4">
-            <div>
-              <label className="font-mono text-xs block mb-1 lowercase">upload favicon:</label>
-              <input
-                ref={faviconInputRef}
-                type="file"
-                accept="image/*,.ico"
-                onChange={handleFaviconUpload}
-                disabled={isFaviconUploading}
-                className="w-full border border-black p-2 font-mono text-sm focus:outline-none file:mr-4 file:py-1 file:px-2 file:border file:border-black file:bg-white file:font-mono file:text-xs file:lowercase file:cursor-pointer hover:file:bg-black hover:file:text-white disabled:opacity-50"
-                data-testid="input-favicon-upload"
-              />
-            </div>
-            {isFaviconUploading && (
-              <p className="font-mono text-xs lowercase text-gray-600">uploading...</p>
-            )}
-            {faviconUrl && (
-              <div className="flex items-center gap-4">
-                <img 
-                  src={faviconUrl} 
-                  alt="Current favicon" 
-                  className="w-8 h-8 border border-black"
-                  style={{ imageRendering: "pixelated" }}
-                />
-                <span className="font-mono text-xs lowercase text-gray-600">
-                  {faviconSaved ? "saved!" : "current favicon"}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="border border-black p-6 w-full bg-white mb-8">
-          <div className="font-mono text-xs uppercase mb-4 bg-black text-white inline-block px-2 py-1">
             admin / news line
           </div>
 
@@ -654,6 +614,73 @@ export default function Admin() {
           >
             {saveEnabledPages.isPending ? "saving..." : pagesSaved ? "saved!" : "save pages"}
           </button>
+        </div>
+
+        <div className="border border-black p-6 w-full bg-white mb-8">
+          <div className="font-mono text-xs uppercase mb-4 bg-black text-white inline-block px-2 py-1">
+            admin / favicon
+          </div>
+
+          <div className="space-y-4">
+            <p className="font-mono text-xs lowercase text-gray-600">
+              upload a favicon image (.ico, .png, or .svg - recommended size: 32x32 or 64x64)
+            </p>
+            
+            {faviconUrl && (
+              <div className="flex items-center gap-4">
+                <img 
+                  src={faviconUrl} 
+                  alt="Current favicon" 
+                  className="w-8 h-8 border border-black"
+                  style={{ imageRendering: "pixelated" }}
+                />
+                <span className="font-mono text-xs lowercase text-gray-600">current favicon</span>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <input
+                ref={faviconInputRef}
+                type="file"
+                accept=".ico,.png,.svg,image/x-icon,image/png,image/svg+xml"
+                onChange={handleFaviconUpload}
+                className="hidden"
+                data-testid="input-favicon-file"
+              />
+              <button
+                type="button"
+                onClick={() => faviconInputRef.current?.click()}
+                disabled={faviconUploading}
+                className="bg-black text-white px-4 py-2 font-mono text-sm lowercase hover:bg-gray-800 disabled:opacity-50"
+                data-testid="button-upload-favicon"
+              >
+                {faviconUploading ? "uploading..." : faviconSaved ? "saved!" : "upload favicon"}
+              </button>
+            </div>
+
+            <div>
+              <label className="font-mono text-xs block mb-1 lowercase">or paste favicon url:</label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={faviconUrl}
+                  onChange={(e) => setFaviconUrl(e.target.value)}
+                  placeholder="https://example.com/favicon.ico"
+                  className="flex-1 border border-black p-2 font-mono text-sm focus:outline-none"
+                  data-testid="input-favicon-url"
+                />
+                <button
+                  type="button"
+                  onClick={() => saveFavicon.mutate(faviconUrl)}
+                  disabled={saveFavicon.isPending || !faviconUrl}
+                  className="bg-black text-white px-4 py-2 font-mono text-sm lowercase hover:bg-gray-800 disabled:opacity-50"
+                  data-testid="button-save-favicon-url"
+                >
+                  save
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="border border-black p-6 w-full bg-white mb-8">
