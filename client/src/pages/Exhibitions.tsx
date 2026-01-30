@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FloatingNav } from "@/components/FloatingNav";
+import { ImageGallery } from "@/components/ImageGallery";
 import type { Exhibition } from "@shared/schema";
 
 export default function Exhibitions() {
@@ -76,24 +77,7 @@ export default function Exhibitions() {
                   </div>
 
                   {images.length > 0 && (
-                    <div className="space-y-6 mb-6">
-                      {images.map((img, idx) => (
-                        <div key={idx}>
-                          <img
-                            src={img.url}
-                            alt={img.caption || exhibition.title}
-                            className="w-full max-h-[70vh] object-contain mx-auto"
-                            loading="lazy"
-                            data-testid={`img-exhibition-${exhibition.id}-${idx}`}
-                          />
-                          {img.caption && (
-                            <p className="font-mono text-[11px] text-gray-500 mt-2 lowercase italic text-center" data-testid={`text-caption-${exhibition.id}-${idx}`}>
-                              {img.caption}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                    <ImageGallery images={images} title={exhibition.title} />
                   )}
                   
                   {exhibition.description && (
