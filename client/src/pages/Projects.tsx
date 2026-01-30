@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { FloatingNav } from "@/components/FloatingNav";
+import { ImageGallery } from "@/components/ImageGallery";
 import type { Project } from "@shared/schema";
 
 export default function Projects() {
@@ -47,24 +48,7 @@ export default function Projects() {
                   </div>
 
                   {images.length > 0 && (
-                    <div className="space-y-6 mb-6">
-                      {images.map((img, idx) => (
-                        <div key={idx}>
-                          <img
-                            src={img.url}
-                            alt={img.caption || project.title}
-                            className="w-full max-h-[70vh] object-contain mx-auto"
-                            loading="lazy"
-                            data-testid={`img-project-${project.id}-${idx}`}
-                          />
-                          {img.caption && (
-                            <p className="font-mono text-[11px] text-gray-500 mt-2 lowercase italic text-center" data-testid={`text-caption-${project.id}-${idx}`}>
-                              {img.caption}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                    <ImageGallery images={images} title={project.title} />
                   )}
                   
                   {project.description && (
