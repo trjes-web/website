@@ -2,10 +2,20 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import type { SlideshowImage } from "@shared/schema";
+import art1 from "@/assets/art1.png";
+import art2 from "@/assets/art2.png";
+import art3 from "@/assets/art3.png";
+
+const defaultImages = [
+  { url: art1, altText: "artwork 1" },
+  { url: art2, altText: "artwork 2" },
+  { url: art3, altText: "artwork 3" },
+];
 
 export function Slideshow() {
   const [index, setIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   const { data: dbImages = [] } = useQuery<SlideshowImage[]>({
     queryKey: ["/api/slideshow"],
@@ -16,7 +26,9 @@ export function Slideshow() {
     },
   });
 
-const images = dbImages.map(img => ({ url: img.imageUrl, altText: img.altText || "" }));
+  const images = dbImages.length > 0 
+    ? dbImages.map(img => ({ url: img.imageUrl, altText: img.altText || "" }))
+    : defaultImages;
 
   useEffect(() => {
     if (images.length <= 1 || isExpanded) return;
@@ -29,8 +41,11 @@ const images = dbImages.map(img => ({ url: img.imageUrl, altText: img.altText ||
   }, [images.length, isExpanded]);
 
   useEffect(() => {
-    setIndex(0);
-  }, [dbImages.length]);
+    if (images.length > 0 && !hasInitialized) {
+      setIndex(Math.floor(Math.random() * images.length));
+      setHasInitialized(true);
+    }
+  }, [images.length, hasInitialized]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -84,6 +99,7 @@ const images = dbImages.map(img => ({ url: img.imageUrl, altText: img.altText ||
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ duration: 0.8, ease: "easeInOut" }}
+            loading="lazy"
           />
         </AnimatePresence>
       </div>
@@ -108,6 +124,7 @@ const images = dbImages.map(img => ({ url: img.imageUrl, altText: img.altText ||
                 src={images[index].url}
                 alt={currentAltText || `slide ${index + 1}`}
                 className="max-w-full max-h-[75vh] object-contain"
+                loading="lazy"
                 data-testid="lightbox-image"
               />
               
