@@ -59,6 +59,25 @@ export async function initializeDatabase() {
         email TEXT NOT NULL UNIQUE,
         subscribed_at TIMESTAMP NOT NULL DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS recent_entries (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        title TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        images JSONB DEFAULT '[]',
+        display_order INTEGER NOT NULL DEFAULT 0,
+        visible BOOLEAN NOT NULL DEFAULT true
+      );
+
+      CREATE TABLE IF NOT EXISTS contact_messages (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        name TEXT NOT NULL,
+        message TEXT NOT NULL,
+        image_url TEXT DEFAULT '',
+        image_caption TEXT DEFAULT '',
+        entry_title TEXT DEFAULT '',
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
     `);
 
     // Add missing columns to existing tables (safe - won't error if already exists)
