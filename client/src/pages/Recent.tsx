@@ -55,13 +55,13 @@ export default function Recent() {
 
   return (
     <div className="min-h-screen bg-white font-mono flex flex-col">
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-6xl aspect-[16/10] relative">
+      <div className="flex-1 flex items-center justify-center p-4 min-h-0">
+        <div className="w-full max-w-6xl relative" style={{ maxHeight: "calc(100vh - 140px)" }}>
           {currentImage && (
             <img
               src={currentImage.url}
               alt={currentImage.caption || currentEntry?.title || ""}
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain max-h-[calc(100vh-140px)]"
               loading="lazy"
               data-testid="recent-image"
             />
