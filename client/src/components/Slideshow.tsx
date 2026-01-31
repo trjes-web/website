@@ -6,6 +6,13 @@ import art1 from "@/assets/art1.png";
 import art2 from "@/assets/art2.png";
 import art3 from "@/assets/art3.png";
 
+const defaultImages = [
+  { url: art1, altText: "artwork 1" },
+  { url: art2, altText: "artwork 2" },
+  { url: art3, altText: "artwork 3" },
+];
+
+
 export function Slideshow() {
   const [index, setIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
