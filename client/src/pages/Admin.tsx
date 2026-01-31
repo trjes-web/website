@@ -982,6 +982,15 @@ export default function Admin() {
             add, edit, and delete project entries
           </p>
         </a>
+
+        <a href="/admin/recent" className="border border-black p-4 w-full bg-white mb-8 block hover:bg-black hover:text-white transition-colors">
+          <div className="font-mono text-xs uppercase">
+            manage recent →
+          </div>
+          <p className="font-mono text-xs lowercase mt-1 opacity-70">
+            add, edit, and delete recent entries
+          </p>
+        </a>
       </main>
     </div>
   );
