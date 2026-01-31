@@ -19,7 +19,7 @@ const PixelFly = ({ isHovering, isMoving, rotation }: { isHovering: boolean; isM
     }
   }, [isHovering, isMoving]);
 
-  const size = isHovering ? 52 : 44;
+  const size = isHovering ? 44 : 30;
 
   return (
     <svg 
