@@ -1,6 +1,4 @@
-// FILE: server/storage.ts
-
-import { users, slideshowImages, siteSettings, exhibitions, projects, pageViews, type User, type InsertUser, type SlideshowImage, type InsertSlideshowImage, type SiteSetting, type Exhibition, type InsertExhibition, type Project, type InsertProject, type InsertPageView, type PageView } from "@shared/schema";
+import { users, slideshowImages, siteSettings, exhibitions, projects, pageViews, newsletterSubscribers, type User, type InsertUser, type SlideshowImage, type InsertSlideshowImage, type SiteSetting, type Exhibition, type InsertExhibition, type Project, type InsertProject, type InsertPageView, type PageView, type InsertNewsletterSubscriber, type NewsletterSubscriber } from "@shared/schema";
 import { db } from "./db";
 import { eq, asc, desc, sql, gte } from "drizzle-orm";
 
@@ -39,6 +37,10 @@ export interface IStorage {
   getPageViewStats(): Promise<{ page: string; views: number }[]>;
   getTotalPageViews(): Promise<number>;
   getRecentPageViews(days: number): Promise<number>;
+
+  subscribeNewsletter(email: string): Promise<NewsletterSubscriber>;
+  getNewsletterSubscribers(): Promise<NewsletterSubscriber[]>;
+  unsubscribeNewsletter(email: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -252,6 +254,23 @@ export class DatabaseStorage implements IStorage {
       .from(pageViews)
       .where(gte(pageViews.visitedAt, cutoff));
     return result.length;
+  }
+
+  async subscribeNewsletter(email: string): Promise<NewsletterSubscriber> {
+    const [subscriber] = await db
+      .insert(newsletterSubscribers)
+      .values({ email })
+      .returning();
+    return subscriber;
+  }
+
+  async getNewsletterSubscribers(): Promise<NewsletterSubscriber[]> {
+    return await db.select().from(newsletterSubscribers).orderBy(desc(newsletterSubscribers.subscribedAt));
+  }
+
+  async unsubscribeNewsletter(email: string): Promise<boolean> {
+    const result = await db.delete(newsletterSubscribers).where(eq(newsletterSubscribers.email, email)).returning();
+    return result.length > 0;
   }
 }
 
