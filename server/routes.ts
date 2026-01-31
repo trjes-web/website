@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertSlideshowImageSchema, insertExhibitionSchema, insertProjectSchema } from "@shared/schema";
+import { insertSlideshowImageSchema, insertExhibitionSchema, insertProjectSchema, insertRecentEntrySchema, insertContactMessageSchema } from "@shared/schema";
 import { z } from "zod";
 import { registerUploadRoutes } from "./upload-routes";
 
@@ -29,6 +29,14 @@ const updateProjectSchema = z.object({
   images: z.array(z.object({ url: z.string(), caption: z.string().optional() })).optional(),
   date: z.string().optional(),
   links: z.array(z.object({ url: z.string(), text: z.string() })).optional(),
+  displayOrder: z.number().int().min(0).optional(),
+  visible: z.boolean().optional(),
+});
+
+const updateRecentEntrySchema = z.object({
+  title: z.string().optional(),
+  description: z.string().optional(),
+  images: z.array(z.object({ url: z.string(), caption: z.string().optional() })).optional(),
   displayOrder: z.number().int().min(0).optional(),
   visible: z.boolean().optional(),
 });
@@ -358,6 +366,150 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to unsubscribe" });
+    }
+  });
+
+  // Recent entries routes
+  app.get("/api/recent", async (req, res) => {
+    try {
+      const includeHidden = req.query.includeHidden === "true";
+      const entries = await storage.getRecentEntries(includeHidden);
+      res.json(entries);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch recent entries" });
+    }
+  });
+
+  app.post("/api/recent", async (req, res) => {
+    try {
+      const { password, ...data } = req.body;
+      if (password !== ADMIN_PASSWORD) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const parsed = insertRecentEntrySchema.safeParse(data);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.message });
+      }
+      const entry = await storage.createRecentEntry(parsed.data);
+      res.status(201).json(entry);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create recent entry" });
+    }
+  });
+
+  app.patch("/api/recent/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { password, ...data } = req.body;
+      if (password !== ADMIN_PASSWORD) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const parsed = updateRecentEntrySchema.safeParse(data);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.message });
+      }
+      const entry = await storage.updateRecentEntry(id, parsed.data);
+      if (!entry) {
+        return res.status(404).json({ error: "Entry not found" });
+      }
+      res.json(entry);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update recent entry" });
+    }
+  });
+
+  app.delete("/api/recent/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { password } = req.body;
+      if (password !== ADMIN_PASSWORD) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const deleted = await storage.deleteRecentEntry(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Entry not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete recent entry" });
+    }
+  });
+
+  app.post("/api/recent/reorder", async (req, res) => {
+    try {
+      const { orderedIds, password } = req.body;
+      if (password !== ADMIN_PASSWORD) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      if (!Array.isArray(orderedIds)) {
+        return res.status(400).json({ error: "orderedIds must be an array" });
+      }
+      await storage.reorderRecentEntries(orderedIds);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reorder recent entries" });
+    }
+  });
+
+  // Contact messages routes
+  app.post("/api/contact/message", async (req, res) => {
+    try {
+      const parsed = insertContactMessageSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.message });
+      }
+      const message = await storage.createContactMessage(parsed.data);
+      
+      // Send email notification
+      const RESEND_API_KEY = process.env.RESEND_API_KEY;
+      const ARTIST_EMAIL = "jesaja.trummer@gmail.com";
+      
+      if (RESEND_API_KEY) {
+        try {
+          const emailBody = `
+New message from ${parsed.data.name}:
+
+${parsed.data.message}
+
+${parsed.data.entryTitle ? `Entry: ${parsed.data.entryTitle}` : ''}
+${parsed.data.imageCaption ? `Image caption: ${parsed.data.imageCaption}` : ''}
+${parsed.data.imageUrl ? `Image URL: ${parsed.data.imageUrl}` : ''}
+          `.trim();
+
+          await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${RESEND_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              from: "Portfolio <onboarding@resend.dev>",
+              to: [ARTIST_EMAIL],
+              subject: `New message from ${parsed.data.name} on Recent`,
+              text: emailBody,
+            }),
+          });
+        } catch (emailError) {
+          console.error("Failed to send email notification:", emailError);
+        }
+      }
+      
+      res.status(201).json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to send message" });
+    }
+  });
+
+  app.post("/api/contact/messages", async (req, res) => {
+    try {
+      const { password } = req.body;
+      if (password !== ADMIN_PASSWORD) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const messages = await storage.getContactMessages();
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch messages" });
     }
   });
 
