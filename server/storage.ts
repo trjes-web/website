@@ -1,4 +1,4 @@
-import { users, slideshowImages, siteSettings, exhibitions, projects, pageViews, newsletterSubscribers, type User, type InsertUser, type SlideshowImage, type InsertSlideshowImage, type SiteSetting, type Exhibition, type InsertExhibition, type Project, type InsertProject, type InsertPageView, type PageView, type InsertNewsletterSubscriber, type NewsletterSubscriber } from "@shared/schema";
+import { users, slideshowImages, siteSettings, exhibitions, projects, pageViews, newsletterSubscribers, recentEntries, contactMessages, type User, type InsertUser, type SlideshowImage, type InsertSlideshowImage, type SiteSetting, type Exhibition, type InsertExhibition, type Project, type InsertProject, type InsertPageView, type PageView, type InsertNewsletterSubscriber, type NewsletterSubscriber, type RecentEntry, type InsertRecentEntry, type ContactMessage, type InsertContactMessage } from "@shared/schema";
 import { db } from "./db";
 import { eq, asc, desc, sql, gte } from "drizzle-orm";
 
@@ -41,6 +41,16 @@ export interface IStorage {
   subscribeNewsletter(email: string): Promise<NewsletterSubscriber>;
   getNewsletterSubscribers(): Promise<NewsletterSubscriber[]>;
   unsubscribeNewsletter(email: string): Promise<boolean>;
+
+  getRecentEntries(includeHidden?: boolean): Promise<RecentEntry[]>;
+  getRecentEntry(id: string): Promise<RecentEntry | undefined>;
+  createRecentEntry(entry: InsertRecentEntry): Promise<RecentEntry>;
+  updateRecentEntry(id: string, entry: Partial<InsertRecentEntry>): Promise<RecentEntry | undefined>;
+  deleteRecentEntry(id: string): Promise<boolean>;
+  reorderRecentEntries(orderedIds: string[]): Promise<void>;
+
+  createContactMessage(message: InsertContactMessage): Promise<ContactMessage>;
+  getContactMessages(): Promise<ContactMessage[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -271,6 +281,61 @@ export class DatabaseStorage implements IStorage {
   async unsubscribeNewsletter(email: string): Promise<boolean> {
     const result = await db.delete(newsletterSubscribers).where(eq(newsletterSubscribers.email, email)).returning();
     return result.length > 0;
+  }
+
+  async getRecentEntries(includeHidden: boolean = false): Promise<RecentEntry[]> {
+    if (includeHidden) {
+      return await db.select().from(recentEntries).orderBy(asc(recentEntries.displayOrder));
+    }
+    return await db.select().from(recentEntries).where(eq(recentEntries.visible, true)).orderBy(asc(recentEntries.displayOrder));
+  }
+
+  async getRecentEntry(id: string): Promise<RecentEntry | undefined> {
+    const [entry] = await db.select().from(recentEntries).where(eq(recentEntries.id, id));
+    return entry || undefined;
+  }
+
+  async createRecentEntry(entry: InsertRecentEntry): Promise<RecentEntry> {
+    const [newEntry] = await db
+      .insert(recentEntries)
+      .values(entry)
+      .returning();
+    return newEntry;
+  }
+
+  async updateRecentEntry(id: string, entry: Partial<InsertRecentEntry>): Promise<RecentEntry | undefined> {
+    const [updated] = await db
+      .update(recentEntries)
+      .set(entry)
+      .where(eq(recentEntries.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteRecentEntry(id: string): Promise<boolean> {
+    const result = await db.delete(recentEntries).where(eq(recentEntries.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async reorderRecentEntries(orderedIds: string[]): Promise<void> {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db
+        .update(recentEntries)
+        .set({ displayOrder: i })
+        .where(eq(recentEntries.id, orderedIds[i]));
+    }
+  }
+
+  async createContactMessage(message: InsertContactMessage): Promise<ContactMessage> {
+    const [newMessage] = await db
+      .insert(contactMessages)
+      .values(message)
+      .returning();
+    return newMessage;
+  }
+
+  async getContactMessages(): Promise<ContactMessage[]> {
+    return await db.select().from(contactMessages).orderBy(desc(contactMessages.createdAt));
   }
 }
 
