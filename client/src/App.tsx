@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CookieConsent } from "@/components/CookieConsent";
 import { Analytics } from "@/components/Analytics";
 import { DynamicFavicon } from "@/components/DynamicFavicon";
+import { CustomCursor } from "@/components/CustomCursor";
 import { CVProvider, useCV } from "@/lib/cvContext";
 import { CVPopup } from "@/components/CVPopup";
 import NotFound from "@/pages/not-found";
@@ -18,6 +19,8 @@ import Projects from "@/pages/Projects";
 import ProjectsAdmin from "@/pages/ProjectsAdmin";
 import Contact from "@/pages/Contact";
 import Impressum from "@/pages/Impressum";
+import Recent from "@/pages/Recent";
+import RecentAdmin from "@/pages/RecentAdmin";
 
 function Router() {
   return (
@@ -30,6 +33,8 @@ function Router() {
       <Route path="/contact" component={Contact} />
       <Route path="/archive" component={Exhibitions} />
       <Route path="/impressum" component={Impressum} />
+      <Route path="/recent" component={Recent} />
+      <Route path="/admin/recent" component={RecentAdmin} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -51,6 +56,7 @@ function App() {
           <Analytics />
           <GlobalCV />
           <DynamicFavicon />
+          <CustomCursor />
         </TooltipProvider>
       </CVProvider>
     </QueryClientProvider>
