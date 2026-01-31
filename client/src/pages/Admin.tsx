@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { SlideshowImage } from "@shared/schema";
+import type { SlideshowImage, NewsletterSubscriber } from "@shared/schema";
 
 export default function Admin() {
   const queryClient = useQueryClient();
@@ -139,6 +139,22 @@ export default function Admin() {
       return res.json();
     },
     enabled: isAuthenticated,
+  });
+
+  const [adminPassword, setAdminPassword] = useState("");
+  
+  const { data: subscribers = [] } = useQuery<NewsletterSubscriber[]>({
+    queryKey: ["/api/newsletter/subscribers", adminPassword],
+    queryFn: async () => {
+      const res = await fetch("/api/newsletter/subscribers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: adminPassword }),
+      });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: isAuthenticated && !!adminPassword,
   });
 
   useEffect(() => {
@@ -415,6 +431,7 @@ export default function Admin() {
       });
       if (res.ok) {
         setIsAuthenticated(true);
+        setAdminPassword(password);
       } else {
         setAuthError("incorrect password");
       }
@@ -786,6 +803,25 @@ export default function Admin() {
               {saveImpressum.isPending ? "saving..." : impressumSaved ? "saved!" : "save impressum"}
             </button>
           </form>
+        </div>
+
+        <div className="border border-black p-6 w-full bg-white mb-8">
+          <div className="font-mono text-xs uppercase mb-4 bg-black text-white inline-block px-2 py-1">
+            admin / newsletter subscribers
+          </div>
+          <p className="font-mono text-xs lowercase mb-4 text-gray-600">
+            {subscribers.length} subscribers
+          </p>
+          {subscribers.length > 0 && (
+            <div className="border border-black max-h-48 overflow-y-auto">
+              {subscribers.map((sub, i) => (
+                <div key={sub.id} className={`flex justify-between p-2 font-mono text-sm ${i !== subscribers.length - 1 ? 'border-b border-black' : ''}`}>
+                  <span>{sub.email}</span>
+                  <span className="text-gray-400 text-xs">{new Date(sub.subscribedAt).toLocaleDateString()}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="border border-black p-6 w-full bg-white mb-8">
