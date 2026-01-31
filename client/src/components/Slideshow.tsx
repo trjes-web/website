@@ -2,22 +2,13 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import type { SlideshowImage } from "@shared/schema";
-import art1 from "@/assets/art1.png";
-import art2 from "@/assets/art2.png";
-import art3 from "@/assets/art3.png";
-
-const defaultImages = [
-  { url: art1, altText: "artwork 1" },
-  { url: art2, altText: "artwork 2" },
-  { url: art3, altText: "artwork 3" },
-];
 
 export function Slideshow() {
   const [index, setIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
 
-  const { data: dbImages = [] } = useQuery<SlideshowImage[]>({
+  const { data: dbImages = [], isLoading } = useQuery<SlideshowImage[]>({
     queryKey: ["/api/slideshow"],
     queryFn: async () => {
       const res = await fetch("/api/slideshow");
@@ -26,9 +17,7 @@ export function Slideshow() {
     },
   });
 
-  const images = dbImages.length > 0 
-    ? dbImages.map(img => ({ url: img.imageUrl, altText: img.altText || "" }))
-    : defaultImages;
+  const images = dbImages.map(img => ({ url: img.imageUrl, altText: img.altText || "" }));
 
   useEffect(() => {
     if (images.length <= 1 || isExpanded) return;
@@ -63,6 +52,14 @@ export function Slideshow() {
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [isExpanded, images.length]);
+
+  if (isLoading) {
+    return (
+      <div className="relative w-full max-w-lg aspect-[4/3] overflow-hidden mx-auto bg-white flex items-center justify-center">
+        <p className="font-mono text-xs lowercase text-gray-400">loading...</p>
+      </div>
+    );
+  }
 
   if (images.length === 0) {
     return (
