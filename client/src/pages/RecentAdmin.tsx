@@ -157,7 +157,7 @@ export default function RecentAdmin() {
       try {
         const formDataUpload = new FormData();
         formDataUpload.append("file", file);
-        const res = await fetch("/api/upload", {
+        const res = await fetch("/api/uploads/image", {
           method: "POST",
           body: formDataUpload,
         });
