@@ -1,10 +1,7 @@
-// FILE: client/src/components/FloatingNav.tsx
-
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useCV } from "@/lib/cvContext";
-import type { Exhibition, Project } from "@shared/schema";
 
 interface NavBall {
   id: string;
@@ -29,9 +26,10 @@ const ALL_NAV_ITEMS = [
   { id: "projects", label: "projects", href: "/projects" },
   { id: "contact", label: "contact", href: "/contact" },
   { id: "archive", label: "archive", href: "/archive" },
+  { id: "recent", label: "recent", href: "/recent" },
 ];
 
-const DEFAULT_PAGES = ["portfolio", "cv", "projects", "contact", "archive"];
+const DEFAULT_PAGES = ["portfolio", "cv", "projects", "contact", "archive", "recent"];
 
 export function FloatingNav() {
   const [, setLocation] = useLocation();
@@ -59,47 +57,19 @@ export function FloatingNav() {
     },
   });
 
-  const { data: exhibitions = [] } = useQuery<Exhibition[]>({
-    queryKey: ["/api/exhibitions"],
-    queryFn: async () => {
-      const res = await fetch("/api/exhibitions");
-      if (!res.ok) throw new Error("Failed to fetch");
-      return res.json();
-    },
-  });
-
-  const { data: projects = [] } = useQuery<Project[]>({
-    queryKey: ["/api/projects"],
-    queryFn: async () => {
-      const res = await fetch("/api/projects");
-      if (!res.ok) throw new Error("Failed to fetch");
-      return res.json();
-    },
-  });
-
   const enabledPages = useMemo(() => {
-    let pages: string[];
     if (enabledPagesData?.value) {
       try {
-        pages = JSON.parse(enabledPagesData.value) as string[];
-        pages = pages.map(p => p === "exhibitions" ? "archive" : p);
+        const pages = JSON.parse(enabledPagesData.value) as string[];
+        return pages.map(p => p === "exhibitions" ? "archive" : p);
       } catch {
-        pages = DEFAULT_PAGES;
+        return DEFAULT_PAGES;
       }
-    } else {
-      pages = DEFAULT_PAGES;
     }
+    return DEFAULT_PAGES;
+  }, [enabledPagesData?.value]);
 
-    if (exhibitions.length === 0 && pages.includes("archive")) {
-      pages = pages.filter(p => p !== "archive");
-    }
-    if (projects.length === 0 && pages.includes("projects")) {
-      pages = pages.filter(p => p !== "projects");
-    }
-
-    return pages;
-  }, [enabledPagesData?.value, exhibitions.length, projects.length]);
-
+  // Get dimensions
   useEffect(() => {
     const updateDimensions = () => {
       setDimensions({
@@ -115,8 +85,10 @@ export function FloatingNav() {
 
   const isMobile = dimensions.width > 0 && dimensions.width < 768;
 
+  // Initialize balls
   useEffect(() => {
     if (dimensions.width === 0 || dimensions.height === 0) return;
+    if (ballsRef.current.length > 0) return;
     
     const navItems = ALL_NAV_ITEMS.filter(item => enabledPages.includes(item.id));
     const edges = isMobile ? { left: 10, right: 10 } : { left: 150, right: 150 };
@@ -166,6 +138,7 @@ export function FloatingNav() {
     setRenderTrigger(1);
   }, [dimensions.width, dimensions.height, enabledPages, isMobile]);
 
+  // Animation with setInterval (more reliable on mobile)
   useEffect(() => {
     if (ballsRef.current.length === 0 || dimensions.width === 0) return;
 
