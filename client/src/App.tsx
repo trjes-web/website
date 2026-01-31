@@ -6,7 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CookieConsent } from "@/components/CookieConsent";
 import { Analytics } from "@/components/Analytics";
 import { DynamicFavicon } from "@/components/DynamicFavicon";
-import { CustomCursor } from "@/components/CustomCursor";
 import { CVProvider, useCV } from "@/lib/cvContext";
 import { CVPopup } from "@/components/CVPopup";
 import NotFound from "@/pages/not-found";
@@ -52,7 +51,6 @@ function App() {
           <Analytics />
           <GlobalCV />
           <DynamicFavicon />
-          <CustomCursor />
         </TooltipProvider>
       </CVProvider>
     </QueryClientProvider>
