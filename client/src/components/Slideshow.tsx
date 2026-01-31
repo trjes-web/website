@@ -12,7 +12,6 @@ const defaultImages = [
   { url: art3, altText: "artwork 3" },
 ];
 
-
 export function Slideshow() {
   const [index, setIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
