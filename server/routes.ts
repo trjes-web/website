@@ -1,5 +1,3 @@
-// FILE: server/routes.ts
-
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -64,6 +62,11 @@ export async function registerRoutes(
 
   app.post("/api/slideshow", async (req, res) => {
     try {
+      const count = await storage.getSlideshowImageCount();
+      if (count >= 5) {
+        return res.status(400).json({ error: "Maximum 5 images allowed" });
+      }
+
       const parsed = insertSlideshowImageSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.message });
@@ -310,6 +313,51 @@ export async function registerRoutes(
       res.json({ stats, total, last7Days, last30Days });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  app.post("/api/newsletter/subscribe", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email || typeof email !== "string" || !email.includes("@")) {
+        return res.status(400).json({ error: "Valid email required" });
+      }
+      const subscriber = await storage.subscribeNewsletter(email.toLowerCase().trim());
+      res.status(201).json({ success: true, subscriber });
+    } catch (error: any) {
+      if (error?.code === "23505") {
+        return res.status(400).json({ error: "Already subscribed" });
+      }
+      res.status(500).json({ error: "Failed to subscribe" });
+    }
+  });
+
+  app.post("/api/newsletter/subscribers", async (req, res) => {
+    try {
+      const { password } = req.body;
+      if (password !== ADMIN_PASSWORD) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const subscribers = await storage.getNewsletterSubscribers();
+      res.json(subscribers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch subscribers" });
+    }
+  });
+
+  app.delete("/api/newsletter/unsubscribe", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: "Email required" });
+      }
+      const deleted = await storage.unsubscribeNewsletter(email.toLowerCase().trim());
+      if (!deleted) {
+        return res.status(404).json({ error: "Email not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to unsubscribe" });
     }
   });
 
