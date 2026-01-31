@@ -91,7 +91,7 @@ export function CustomCursor() {
     return null;
   }
 
-  const size = isHovering ? 48 : 40;
+  const size = isHovering ? 32 : 25;
   
   // Wing animation for hover (flapping)
   const leftWingRotation = isHovering ? (frame === 0 ? -20 : 20) : 0;
