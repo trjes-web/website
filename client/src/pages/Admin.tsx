@@ -34,6 +34,7 @@ export default function Admin() {
     { id: "projects", label: "projects" },
     { id: "contact", label: "contact" },
     { id: "archive", label: "archive" },
+    { id: "recent", label: "recent" },
   ];
 
   const { data: images = [], isLoading } = useQuery<SlideshowImage[]>({
