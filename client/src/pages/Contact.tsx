@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { FloatingNav } from "@/components/FloatingNav";
 import { EnvelopeParticles, useEnvelopeParticles } from "@/components/EnvelopeParticles";
+import { NewsletterSignup } from "@/components/NewsletterSignup";
 
 export default function Contact() {
   const { particles, triggerParticles } = useEnvelopeParticles();
@@ -47,7 +48,7 @@ export default function Contact() {
       </header>
 
       <main className="flex-1 flex flex-col justify-center items-center relative z-10">
-        <div className="font-mono text-sm lowercase space-y-4">
+        <div className="font-mono text-sm lowercase space-y-4 max-w-xs w-full">
           <p>
             <a
               href={`mailto:${email}`}
@@ -70,6 +71,7 @@ export default function Contact() {
               @{instagram.replace('@', '')}
             </a>
           </p>
+          <NewsletterSignup />
         </div>
       </main>
 
