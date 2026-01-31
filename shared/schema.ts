@@ -122,3 +122,45 @@ export const insertNewsletterSubscriberSchema = createInsertSchema(newsletterSub
 
 export type InsertNewsletterSubscriber = z.infer<typeof insertNewsletterSubscriberSchema>;
 export type NewsletterSubscriber = typeof newsletterSubscribers.$inferSelect;
+
+export const recentImageSchema = z.object({
+  url: z.string(),
+  caption: z.string().optional(),
+});
+
+export const recentEntries = pgTable("recent_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  description: text("description").default(""),
+  images: jsonb("images").$type<{ url: string; caption?: string }[]>().default([]),
+  displayOrder: integer("display_order").notNull().default(0),
+  visible: boolean("visible").notNull().default(true),
+});
+
+export const insertRecentEntrySchema = createInsertSchema(recentEntries).omit({
+  id: true,
+}).extend({
+  images: z.array(recentImageSchema).optional(),
+});
+
+export type InsertRecentEntry = z.infer<typeof insertRecentEntrySchema>;
+export type RecentEntry = typeof recentEntries.$inferSelect;
+export type RecentImage = z.infer<typeof recentImageSchema>;
+
+export const contactMessages = pgTable("contact_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  message: text("message").notNull(),
+  imageUrl: text("image_url").default(""),
+  imageCaption: text("image_caption").default(""),
+  entryTitle: text("entry_title").default(""),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertContactMessageSchema = createInsertSchema(contactMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
+export type ContactMessage = typeof contactMessages.$inferSelect;
