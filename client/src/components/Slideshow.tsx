@@ -2,9 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import type { SlideshowImage } from "@shared/schema";
-import art1 from "@/assets/art1.png";
-import art2 from "@/assets/art2.png";
-import art3 from "@/assets/art3.png";
+
 
 const defaultImages = [
   { url: art1, altText: "artwork 1" },
