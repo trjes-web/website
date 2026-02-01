@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { FloatingNav } from "@/components/FloatingNav";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Impressum() {
+  const { t } = useLanguage();
   const { data: impressumData, isLoading } = useQuery<{ value: string | null }>({
     queryKey: ["/api/settings/impressumText"],
     queryFn: async () => {
@@ -11,7 +13,7 @@ export default function Impressum() {
     },
   });
 
-  const impressumText = impressumData?.value || "impressum content will be added here.";
+  const impressumText = impressumData?.value || t("impressumDefault");
 
   return (
     <div className="min-h-screen p-8 flex flex-col relative">
@@ -27,11 +29,11 @@ export default function Impressum() {
 
       <main className="flex-1 mt-24 max-w-2xl mx-auto w-full">
         <div className="font-mono text-xs uppercase mb-6">
-          impressum / legal notice
+          {t("impressumTitle")}
         </div>
 
         {isLoading ? (
-          <p className="font-mono text-xs lowercase">loading...</p>
+          <p className="font-mono text-xs lowercase">{t("loading")}</p>
         ) : (
           <div className="font-mono text-sm lowercase whitespace-pre-wrap leading-relaxed" data-testid="text-impressum">
             {impressumText}
@@ -40,7 +42,7 @@ export default function Impressum() {
       </main>
 
       <footer className="mt-16 font-mono text-[10px] lowercase text-center">
-        <a href="/" className="text-gray-400 hover:text-black">back to home</a>
+        <a href="/" className="text-gray-400 hover:text-black">{t("backToHome")}</a>
       </footer>
     </div>
   );
