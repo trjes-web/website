@@ -90,16 +90,21 @@ export default function Exhibitions() {
                     </div>
                   )}
 
-                  {exhibition.floorPlanUrl && (
-                    <a
-                      href={exhibition.floorPlanUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-mono text-xs lowercase underline hover:no-underline inline-block"
-                      data-testid={`link-floorplan-${exhibition.id}`}
-                    >
-                      {t("viewFloorPlan")}
-                    </a>
+                  {((exhibition.customLinks as { label: string; url: string }[]) || []).length > 0 && (
+                    <div className="flex flex-wrap gap-4">
+                      {((exhibition.customLinks as { label: string; url: string }[]) || []).map((link, index) => (
+                        <a
+                          key={index}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-xs lowercase underline hover:no-underline"
+                          data-testid={`link-custom-${exhibition.id}-${index}`}
+                        >
+                          {link.label} →
+                        </a>
+                      ))}
+                    </div>
                   )}
                 </article>
               );
