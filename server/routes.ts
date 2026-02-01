@@ -18,7 +18,7 @@ const updateExhibitionSchema = z.object({
   date: z.string().optional(),
   location: z.string().optional(),
   floorPlanUrl: z.string().optional(),
-  links: z.array(z.object({ url: z.string(), text: z.string() })).optional(),
+  customLinks: z.array(z.object({ label: z.string(), url: z.string() })).optional(),
   displayOrder: z.number().int().min(0).optional(),
   visible: z.boolean().optional(),
 });
@@ -28,7 +28,7 @@ const updateProjectSchema = z.object({
   description: z.string().optional(),
   images: z.array(z.object({ url: z.string(), caption: z.string().optional() })).optional(),
   date: z.string().optional(),
-  links: z.array(z.object({ url: z.string(), text: z.string() })).optional(),
+  customLinks: z.array(z.object({ label: z.string(), url: z.string() })).optional(),
   displayOrder: z.number().int().min(0).optional(),
   visible: z.boolean().optional(),
 });
