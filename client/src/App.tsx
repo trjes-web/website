@@ -9,8 +9,6 @@ import { DynamicFavicon } from "@/components/DynamicFavicon";
 import { CustomCursor } from "@/components/CustomCursor";
 import { CVProvider, useCV } from "@/lib/cvContext";
 import { CVPopup } from "@/components/CVPopup";
-import { LanguageProvider } from "@/contexts/LanguageContext";
-import { LanguageToggle } from "@/components/LanguageToggle";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Placeholder from "@/pages/Placeholder";
@@ -50,20 +48,17 @@ function GlobalCV() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <CVProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-            <LanguageToggle />
-            <CookieConsent />
-            <Analytics />
-            <GlobalCV />
-            <DynamicFavicon />
-            <CustomCursor />
-          </TooltipProvider>
-        </CVProvider>
-      </LanguageProvider>
+      <CVProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+          <CookieConsent />
+          <Analytics />
+          <GlobalCV />
+          <DynamicFavicon />
+          <CustomCursor />
+        </TooltipProvider>
+      </CVProvider>
     </QueryClientProvider>
   );
 }
