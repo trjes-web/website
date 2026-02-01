@@ -299,7 +299,7 @@ export async function registerRoutes(
     try {
       const { page, referrer } = req.body;
       const userAgent = req.headers["user-agent"] || "";
-      await storage.recordPageView({ 
+      await storage.createPageView({ 
         page: page || "/", 
         userAgent: userAgent.substring(0, 200),
         referrer: referrer?.substring(0, 500) || ""
@@ -312,13 +312,8 @@ export async function registerRoutes(
 
   app.get("/api/analytics/stats", async (req, res) => {
     try {
-      const [stats, total, last7Days, last30Days] = await Promise.all([
-        storage.getPageViewStats(),
-        storage.getTotalPageViews(),
-        storage.getRecentPageViews(7),
-        storage.getRecentPageViews(30),
-      ]);
-      res.json({ stats, total, last7Days, last30Days });
+      const stats = await storage.getPageViewStats(30);
+      res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch analytics" });
     }
@@ -510,6 +505,77 @@ ${parsed.data.imageUrl ? `Image URL: ${parsed.data.imageUrl}` : ''}
       res.json(messages);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
+  // Backup/Export endpoint
+  app.post("/api/admin/export", async (req, res) => {
+    try {
+      const { password } = req.body;
+      if (password !== ADMIN_PASSWORD) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const [
+        slideshowImages,
+        exhibitions,
+        projects,
+        recentEntries,
+        settings,
+        subscribers,
+        messages,
+      ] = await Promise.all([
+        storage.getSlideshowImages(),
+        storage.getExhibitions(),
+        storage.getProjects(),
+        storage.getRecentEntries(),
+        storage.getAllSettings(),
+        storage.getNewsletterSubscribers(),
+        storage.getContactMessages(),
+      ]);
+
+      const backup = {
+        exportedAt: new Date().toISOString(),
+        version: "1.0",
+        data: {
+          slideshowImages,
+          exhibitions,
+          projects,
+          recentEntries,
+          settings,
+          subscribers,
+          messages,
+        },
+      };
+
+      res.json(backup);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to export data" });
+    }
+  });
+
+  // Analytics/Statistics endpoints
+  app.post("/api/pageview", async (req, res) => {
+    try {
+      const { page, userAgent, referrer } = req.body;
+      await storage.createPageView({ page, userAgent, referrer });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to track page view" });
+    }
+  });
+
+  app.post("/api/admin/stats", async (req, res) => {
+    try {
+      const { password, days = 30 } = req.body;
+      if (password !== ADMIN_PASSWORD) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const stats = await storage.getPageViewStats(days);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch statistics" });
     }
   });
 
