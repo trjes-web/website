@@ -726,5 +726,165 @@ ${parsed.data.imageUrl ? `Image URL: ${parsed.data.imageUrl}` : ''}
     }
   });
 
+  // robots.txt - Block AI crawlers
+  app.get("/robots.txt", (req, res) => {
+    const robotsTxt = `# robots.txt for jesajaaljoschatrummer.studio
+
+User-agent: *
+Allow: /
+
+# Disallow admin areas
+Disallow: /admin
+Disallow: /api/
+
+# Block AI/ML crawlers from using content
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: Omgilibot
+Disallow: /
+
+User-agent: FacebookBot
+Disallow: /
+
+User-agent: Diffbot
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: YouBot
+Disallow: /
+
+Sitemap: https://jesajaaljoschatrummer.studio/sitemap.xml
+`;
+    res.type("text/plain").send(robotsTxt);
+  });
+
+  // Dynamic sitemap.xml - only shows enabled/visible pages
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      const baseUrl = "https://jesajaaljoschatrummer.studio";
+      const enabledPagesData = await storage.getSetting("enabledPages");
+      let enabledPages = ["portfolio", "cv", "projects", "contact", "archive", "recent"];
+      
+      if (enabledPagesData) {
+        try {
+          enabledPages = JSON.parse(enabledPagesData);
+        } catch {}
+      }
+
+      const [exhibitions, projects] = await Promise.all([
+        storage.getExhibitions(false),
+        storage.getProjects(false),
+      ]);
+
+      const staticPages = [
+        { url: "/", priority: "1.0", changefreq: "weekly" },
+      ];
+
+      const pageMapping: Record<string, { url: string; priority: string }> = {
+        portfolio: { url: "/portfolio", priority: "0.9" },
+        archive: { url: "/archive", priority: "0.8" },
+        projects: { url: "/projects", priority: "0.8" },
+        contact: { url: "/contact", priority: "0.7" },
+        cv: { url: "/cv", priority: "0.6" },
+        recent: { url: "/recent", priority: "0.8" },
+      };
+
+      let urls = staticPages.map(
+        (p) => `  <url>
+    <loc>${baseUrl}${p.url}</loc>
+    <changefreq>${p.changefreq}</changefreq>
+    <priority>${p.priority}</priority>
+  </url>`
+      );
+
+      enabledPages.forEach((page: string) => {
+        const mapping = pageMapping[page];
+        if (mapping) {
+          urls.push(`  <url>
+    <loc>${baseUrl}${mapping.url}</loc>
+    <changefreq>monthly</changefreq>
+    <priority>${mapping.priority}</priority>
+  </url>`);
+        }
+      });
+
+      if (enabledPages.includes("archive")) {
+        exhibitions.forEach((ex) => {
+          urls.push(`  <url>
+    <loc>${baseUrl}/archive/${ex.id}</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>`);
+        });
+      }
+
+      if (enabledPages.includes("projects")) {
+        projects.forEach((proj) => {
+          urls.push(`  <url>
+    <loc>${baseUrl}/projects/${proj.id}</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>`);
+        });
+      }
+
+      const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.join("\n")}
+</urlset>`;
+
+      res.type("application/xml").send(sitemap);
+    } catch (error) {
+      res.status(500).send("Error generating sitemap");
+    }
+  });
+
+  // JSON-LD structured data endpoint
+  app.get("/api/structured-data", async (req, res) => {
+    try {
+      const jsonLd = {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        "name": "Jesaja Aljoscha Trummer",
+        "jobTitle": "Visual Artist",
+        "url": "https://jesajaaljoschatrummer.studio",
+        "sameAs": [],
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Vienna",
+          "addressCountry": "Austria"
+        },
+        "knowsAbout": ["Visual Art", "Contemporary Art", "Installation Art", "Exhibition"]
+      };
+      res.json(jsonLd);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to generate structured data" });
+    }
+  });
+
   return httpServer;
 }
