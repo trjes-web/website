@@ -46,6 +46,11 @@ export const insertSiteSettingSchema = createInsertSchema(siteSettings);
 export type InsertSiteSetting = z.infer<typeof insertSiteSettingSchema>;
 export type SiteSetting = typeof siteSettings.$inferSelect;
 
+export const customLinkSchema = z.object({
+  label: z.string(),
+  url: z.string(),
+});
+
 export const exhibitions = pgTable("exhibitions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
@@ -54,6 +59,7 @@ export const exhibitions = pgTable("exhibitions", {
   date: text("date").default(""),
   location: text("location").default(""),
   floorPlanUrl: text("floor_plan_url").default(""),
+  customLinks: jsonb("custom_links").$type<{ label: string; url: string }[]>().default([]),
   displayOrder: integer("display_order").notNull().default(0),
   visible: boolean("visible").notNull().default(true),
 });
@@ -62,6 +68,7 @@ export const insertExhibitionSchema = createInsertSchema(exhibitions).omit({
   id: true,
 }).extend({
   images: z.array(exhibitionImageSchema).optional(),
+  customLinks: z.array(customLinkSchema).optional(),
 });
 
 export type InsertExhibition = z.infer<typeof insertExhibitionSchema>;
@@ -79,6 +86,7 @@ export const projects = pgTable("projects", {
   description: text("description").default(""),
   images: jsonb("images").$type<{ url: string; caption?: string }[]>().default([]),
   date: text("date").default(""),
+  customLinks: jsonb("custom_links").$type<{ label: string; url: string }[]>().default([]),
   displayOrder: integer("display_order").notNull().default(0),
   visible: boolean("visible").notNull().default(true),
 });
@@ -87,6 +95,7 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
   id: true,
 }).extend({
   images: z.array(projectImageSchema).optional(),
+  customLinks: z.array(customLinkSchema).optional(),
 });
 
 export type InsertProject = z.infer<typeof insertProjectSchema>;
