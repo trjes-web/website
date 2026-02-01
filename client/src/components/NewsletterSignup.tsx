@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export function NewsletterSignup() {
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -14,13 +16,13 @@ export function NewsletterSignup() {
     },
     onSuccess: () => {
       setStatus("success");
-      setMessage("subscribed!");
+      setMessage(t("subscribeSuccess"));
       setEmail("");
       setTimeout(() => setStatus("idle"), 3000);
     },
-    onError: (error: any) => {
+    onError: () => {
       setStatus("error");
-      setMessage(error?.message || "already subscribed");
+      setMessage(t("alreadySubscribed"));
       setTimeout(() => setStatus("idle"), 3000);
     },
   });
@@ -35,13 +37,13 @@ export function NewsletterSignup() {
   return (
     <div className="border-t border-black pt-4 mt-8">
       <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-        <label className="text-xs uppercase tracking-wider">newsletter</label>
+        <label className="text-xs uppercase tracking-wider">{t("newsletter")}</label>
         <div className="flex gap-2">
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="email@example.com"
+            placeholder={t("enterEmail")}
             className="flex-1 border border-black px-2 py-1 text-sm font-mono bg-transparent focus:outline-none"
             disabled={subscribe.isPending}
             data-testid="input-newsletter-email"
@@ -52,7 +54,7 @@ export function NewsletterSignup() {
             className="border border-black px-3 py-1 text-sm font-mono hover:bg-black hover:text-white transition-colors disabled:opacity-50"
             data-testid="button-newsletter-subscribe"
           >
-            {subscribe.isPending ? "..." : "subscribe"}
+            {subscribe.isPending ? "..." : t("subscribe")}
           </button>
         </div>
         {status !== "idle" && (
