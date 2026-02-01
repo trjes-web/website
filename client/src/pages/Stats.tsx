@@ -44,9 +44,9 @@ export default function Stats() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await login(passwordInput);
-    if (!success) {
-      setError("Invalid password");
+    const result = await login(passwordInput);
+    if (!result.success) {
+      setError(result.error || "Invalid password");
     }
   };
 
