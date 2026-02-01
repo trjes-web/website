@@ -43,7 +43,7 @@ export function NewsletterSignup() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder={t("enterEmail")}
+            placeholder={t("enteremail")}
             className="flex-1 border border-black px-2 py-1 text-sm font-mono bg-transparent focus:outline-none"
             disabled={subscribe.isPending}
             data-testid="input-newsletter-email"
