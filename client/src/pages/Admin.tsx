@@ -7,6 +7,10 @@ export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState("");
+  const [isLocked, setIsLocked] = useState(false);
+  const [requiresCode, setRequiresCode] = useState(false);
+  const [unlockCode, setUnlockCode] = useState("");
+  const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [portfolioLink, setPortfolioLink] = useState("");
@@ -428,13 +432,25 @@ export default function Admin() {
       const res = await fetch("/api/admin/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password, unlockCode: unlockCode || undefined }),
       });
+      const data = await res.json();
+      
       if (res.ok) {
         setIsAuthenticated(true);
         setAdminPassword(password);
+        setIsLocked(false);
+        setRequiresCode(false);
+        setAttemptsRemaining(null);
+      } else if (res.status === 423 || data.locked) {
+        setIsLocked(true);
+        setRequiresCode(data.requiresCode || false);
+        setAuthError(data.error || "too many attempts");
       } else {
-        setAuthError("incorrect password");
+        setAuthError(data.error || "incorrect password");
+        if (data.attemptsRemaining !== undefined) {
+          setAttemptsRemaining(data.attemptsRemaining);
+        }
       }
     } catch {
       setAuthError("connection error");
@@ -516,15 +532,33 @@ export default function Admin() {
                   autoFocus
                 />
               </div>
+              {requiresCode && (
+                <div>
+                  <label className="font-mono text-xs block mb-1 lowercase">unlock code (check email):</label>
+                  <input
+                    type="text"
+                    value={unlockCode}
+                    onChange={(e) => setUnlockCode(e.target.value.toUpperCase())}
+                    placeholder="XXXXXX"
+                    className="w-full border border-black p-2 font-mono text-sm focus:outline-none uppercase"
+                    data-testid="input-unlock-code"
+                  />
+                </div>
+              )}
               {authError && (
                 <p className="font-mono text-xs text-red-600 lowercase">{authError}</p>
+              )}
+              {attemptsRemaining !== null && !isLocked && (
+                <p className="font-mono text-xs text-orange-600 lowercase">
+                  {attemptsRemaining} attempt{attemptsRemaining !== 1 ? "s" : ""} remaining
+                </p>
               )}
               <button
                 type="submit"
                 className="bg-black text-white px-4 py-2 font-mono text-sm lowercase hover:bg-gray-800 w-full"
                 data-testid="button-login"
               >
-                enter
+                {requiresCode ? "verify" : "enter"}
               </button>
             </form>
           </div>
