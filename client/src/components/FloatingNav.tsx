@@ -85,6 +85,12 @@ export function FloatingNav() {
 
   const isMobile = dimensions.width > 0 && dimensions.width < 768;
 
+  // Reset balls when enabled pages change
+  useEffect(() => {
+    ballsRef.current = [];
+    setRenderTrigger(r => r + 1);
+  }, [enabledPages]);
+
   // Initialize balls
   useEffect(() => {
     if (dimensions.width === 0 || dimensions.height === 0) return;
