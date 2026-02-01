@@ -1,23 +1,18 @@
-// FILE: client/src/pages/ExhibitionsAdmin.tsx
-
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Exhibition } from "@shared/schema";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 
 interface ExhibitionImage {
   url: string;
   caption?: string;
 }
 
-interface ExhibitionLink {
-  url: string;
-  text: string;
-}
-
 export default function ExhibitionsAdmin() {
   const queryClient = useQueryClient();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState("");
+  const { isAuthenticated, password: adminPassword, login, isLocked, requiresCode } = useAdminAuth();
+  const [inputPassword, setInputPassword] = useState("");
+  const [unlockCode, setUnlockCode] = useState("");
   const [authError, setAuthError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -28,14 +23,13 @@ export default function ExhibitionsAdmin() {
     date: "",
     location: "",
     floorPlanUrl: "",
-    links: [] as ExhibitionLink[],
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: exhibitions = [], isLoading } = useQuery<Exhibition[]>({
     queryKey: ["/api/exhibitions"],
     queryFn: async () => {
-      const res = await fetch("/api/exhibitions?includeHidden=true");
+      const res = await fetch("/api/exhibitions");
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },
@@ -125,19 +119,9 @@ export default function ExhibitionsAdmin() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
-    try {
-      const res = await fetch("/api/admin/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      if (res.ok) {
-        setIsAuthenticated(true);
-      } else {
-        setAuthError("incorrect password");
-      }
-    } catch {
-      setAuthError("connection error");
+    const result = await login(inputPassword, unlockCode || undefined);
+    if (!result.success) {
+      setAuthError(result.error || "incorrect password");
     }
   };
 
@@ -149,7 +133,6 @@ export default function ExhibitionsAdmin() {
       date: "",
       location: "",
       floorPlanUrl: "",
-      links: [],
     });
     setEditingId(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -162,12 +145,12 @@ export default function ExhibitionsAdmin() {
     setIsUploading(true);
     try {
       for (const file of Array.from(files)) {
-        const formDataUpload = new FormData();
-        formDataUpload.append("file", file);
+        const formData = new FormData();
+        formData.append("file", file);
 
         const uploadRes = await fetch("/api/uploads/image", {
           method: "POST",
-          body: formDataUpload,
+          body: formData,
         });
 
         if (!uploadRes.ok) throw new Error("Failed to upload file");
@@ -208,24 +191,6 @@ export default function ExhibitionsAdmin() {
     setFormData(prev => ({ ...prev, images: newImages }));
   };
 
-  const addLink = () => {
-    setFormData(prev => ({ ...prev, links: [...prev.links, { url: "", text: "" }] }));
-  };
-
-  const updateLink = (index: number, field: "url" | "text", value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      links: prev.links.map((link, i) => i === index ? { ...link, [field]: value } : link),
-    }));
-  };
-
-  const removeLink = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      links: prev.links.filter((_, i) => i !== index),
-    }));
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title.trim()) return;
@@ -240,7 +205,6 @@ export default function ExhibitionsAdmin() {
   const startEdit = (exhibition: Exhibition) => {
     setEditingId(exhibition.id);
     const images = (exhibition.images as ExhibitionImage[]) || [];
-    const links = (exhibition.links as ExhibitionLink[]) || [];
     setFormData({
       title: exhibition.title,
       description: exhibition.description || "",
@@ -248,7 +212,6 @@ export default function ExhibitionsAdmin() {
       date: exhibition.date || "",
       location: exhibition.location || "",
       floorPlanUrl: exhibition.floorPlanUrl || "",
-      links: links,
     });
   };
 
@@ -271,13 +234,26 @@ export default function ExhibitionsAdmin() {
                 <label className="font-mono text-xs block mb-1 lowercase">password:</label>
                 <input
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={inputPassword}
+                  onChange={(e) => setInputPassword(e.target.value)}
                   className="w-full border border-black p-2 font-mono text-sm focus:outline-none"
                   autoFocus
                   data-testid="input-password"
                 />
               </div>
+              {requiresCode && (
+                <div>
+                  <label className="font-mono text-xs block mb-1 lowercase">unlock code:</label>
+                  <input
+                    type="text"
+                    value={unlockCode}
+                    onChange={(e) => setUnlockCode(e.target.value.toUpperCase())}
+                    placeholder="XXXXXX"
+                    className="w-full border border-black p-2 font-mono text-sm focus:outline-none uppercase"
+                    data-testid="input-unlock-code"
+                  />
+                </div>
+              )}
               {authError && (
                 <p className="font-mono text-xs text-red-600 lowercase">{authError}</p>
               )}
@@ -422,39 +398,16 @@ export default function ExhibitionsAdmin() {
             </div>
 
             <div>
-              <label className="font-mono text-xs block mb-1 lowercase">links (custom text + url)</label>
-              {formData.links.map((link, idx) => (
-                <div key={idx} className="flex gap-2 mb-2">
-                  <input
-                    type="text"
-                    value={link.text}
-                    onChange={(e) => updateLink(idx, "text", e.target.value)}
-                    placeholder="link text (e.g. floor plan)"
-                    className="flex-1 border border-black p-2 font-mono text-sm focus:outline-none"
-                  />
-                  <input
-                    type="url"
-                    value={link.url}
-                    onChange={(e) => updateLink(idx, "url", e.target.value)}
-                    placeholder="https://..."
-                    className="flex-1 border border-black p-2 font-mono text-sm focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeLink(idx)}
-                    className="border border-red-600 text-red-600 px-3 hover:bg-red-600 hover:text-white font-mono"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={addLink}
-                className="border border-black px-3 py-1 font-mono text-xs hover:bg-black hover:text-white"
-              >
-                + add link
-              </button>
+              <label className="font-mono text-xs block mb-1 lowercase">floor plan / text link (url)</label>
+              <input
+                type="url"
+                value={formData.floorPlanUrl}
+                onChange={(e) => setFormData(prev => ({ ...prev, floorPlanUrl: e.target.value }))}
+                placeholder="https://..."
+                className="w-full border border-black p-2 font-mono text-sm focus:outline-none"
+                data-testid="input-floorplan"
+              />
+              <p className="font-mono text-[10px] text-gray-500 mt-1">link to pdf, google doc, or external document</p>
             </div>
 
             <div className="flex gap-2">
