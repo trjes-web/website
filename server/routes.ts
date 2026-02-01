@@ -48,6 +48,65 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  // Security Headers
+  app.use((req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("X-XSS-Protection", "1; mode=block");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+      "font-src 'self' https://fonts.gstatic.com; " +
+      "img-src 'self' data: blob: https://res.cloudinary.com https://*.cloudinary.com; " +
+      "media-src 'self' blob: https://res.cloudinary.com; " +
+      "connect-src 'self' https://res.cloudinary.com; " +
+      "frame-ancestors 'none';"
+    );
+    next();
+  });
+
+  // Rate Limiting
+  const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+  const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+  const RATE_LIMIT_MAX_REQUESTS = 100; // 100 requests per minute per IP
+
+  app.use("/api/", (req, res, next) => {
+    const clientIp = String(req.ip || req.headers["x-forwarded-for"] || "unknown");
+    const now = Date.now();
+    
+    let rateData = rateLimitMap.get(clientIp);
+    
+    if (!rateData || now > rateData.resetTime) {
+      rateData = { count: 1, resetTime: now + RATE_LIMIT_WINDOW };
+      rateLimitMap.set(clientIp, rateData);
+    } else {
+      rateData.count++;
+    }
+
+    res.setHeader("X-RateLimit-Limit", RATE_LIMIT_MAX_REQUESTS.toString());
+    res.setHeader("X-RateLimit-Remaining", Math.max(0, RATE_LIMIT_MAX_REQUESTS - rateData.count).toString());
+    res.setHeader("X-RateLimit-Reset", Math.ceil(rateData.resetTime / 1000).toString());
+
+    if (rateData.count > RATE_LIMIT_MAX_REQUESTS) {
+      return res.status(429).json({ error: "Too many requests. Please slow down." });
+    }
+
+    next();
+  });
+
+  // Clean up old rate limit entries every 5 minutes
+  setInterval(() => {
+    const now = Date.now();
+    Array.from(rateLimitMap.entries()).forEach(([ip, data]) => {
+      if (now > data.resetTime) {
+        rateLimitMap.delete(ip);
+      }
+    });
+  }, 5 * 60 * 1000);
+
   registerUploadRoutes(app);
 
   const loginAttemptsMap = new Map<string, { count: number; lockedUntil: Date | null; code: string | null; codeExpires: Date | null }>();
