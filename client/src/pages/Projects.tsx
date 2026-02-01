@@ -56,8 +56,25 @@ export default function Projects() {
                   )}
                   
                   {project.description && (
-                    <div className="font-mono text-sm lowercase whitespace-pre-wrap leading-relaxed" data-testid={`text-description-${project.id}`}>
+                    <div className="font-mono text-sm lowercase whitespace-pre-wrap leading-relaxed mb-4" data-testid={`text-description-${project.id}`}>
                       {project.description}
+                    </div>
+                  )}
+
+                  {((project.customLinks as { label: string; url: string }[]) || []).length > 0 && (
+                    <div className="flex flex-wrap gap-4">
+                      {((project.customLinks as { label: string; url: string }[]) || []).map((link, index) => (
+                        <a
+                          key={index}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-xs lowercase underline hover:no-underline"
+                          data-testid={`link-custom-${project.id}-${index}`}
+                        >
+                          {link.label} →
+                        </a>
+                      ))}
                     </div>
                   )}
                 </article>
