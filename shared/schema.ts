@@ -164,3 +164,15 @@ export const insertContactMessageSchema = createInsertSchema(contactMessages).om
 
 export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
 export type ContactMessage = typeof contactMessages.$inferSelect;
+
+export const loginAttempts = pgTable("login_attempts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ipAddress: text("ip_address").notNull(),
+  attemptCount: integer("attempt_count").notNull().default(0),
+  lockedUntil: timestamp("locked_until"),
+  verificationCode: text("verification_code"),
+  codeExpiresAt: timestamp("code_expires_at"),
+  lastAttempt: timestamp("last_attempt").notNull().defaultNow(),
+});
+
+export type LoginAttempt = typeof loginAttempts.$inferSelect;
