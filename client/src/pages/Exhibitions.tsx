@@ -1,12 +1,12 @@
-// FILE: client/src/pages/Exhibitions.tsx
-
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FloatingNav } from "@/components/FloatingNav";
 import { ImageGallery } from "@/components/ImageGallery";
+import { useLanguage } from "@/contexts/LanguageContext";
 import type { Exhibition } from "@shared/schema";
 
 export default function Exhibitions() {
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   
   const { data: exhibitions = [], isLoading } = useQuery<Exhibition[]>({
@@ -48,7 +48,7 @@ export default function Exhibitions() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="search archive..."
+              placeholder={t("searchArchive")}
               className="w-full max-w-xs border border-black p-2 font-mono text-sm focus:outline-none lowercase"
               data-testid="input-search-archive"
             />
@@ -56,16 +56,15 @@ export default function Exhibitions() {
         )}
 
         {isLoading ? (
-          <p className="font-mono text-xs lowercase">loading...</p>
+          <p className="font-mono text-xs lowercase">{t("loading")}</p>
         ) : filteredExhibitions.length === 0 ? (
           <p className="font-mono text-xs lowercase text-gray-500">
-            {searchQuery ? "no results found." : "no archive entries yet."}
+            {searchQuery ? t("noResultsFound") : t("noArchiveEntries")}
           </p>
         ) : (
           <div className="space-y-16">
             {filteredExhibitions.map((exhibition) => {
               const images = (exhibition.images as { url: string; caption?: string }[]) || [];
-              const links = (exhibition.links as { url: string; text: string }[]) || [];
               return (
                 <article key={exhibition.id} className="border-b border-black pb-12" data-testid={`exhibition-${exhibition.id}`}>
                   <div className="mb-6">
@@ -89,20 +88,16 @@ export default function Exhibitions() {
                     </div>
                   )}
 
-                  {links.length > 0 && (
-                    <div className="flex flex-wrap gap-4">
-                      {links.map((link, idx) => (
-                        <a
-                          key={idx}
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-mono text-xs lowercase underline hover:no-underline inline-block"
-                        >
-                          {link.text || "link"} →
-                        </a>
-                      ))}
-                    </div>
+                  {exhibition.floorPlanUrl && (
+                    <a
+                      href={exhibition.floorPlanUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-xs lowercase underline hover:no-underline inline-block"
+                      data-testid={`link-floorplan-${exhibition.id}`}
+                    >
+                      {t("viewFloorPlan")}
+                    </a>
                   )}
                 </article>
               );
@@ -112,7 +107,7 @@ export default function Exhibitions() {
       </main>
 
       <footer className="mt-16 font-mono text-[10px] lowercase text-center">
-        <a href="/impressum" className="text-gray-400 hover:text-black">impressum / legal notice</a>
+        <a href="/impressum" className="text-gray-400 hover:text-black">{t("legalNotice")}</a>
       </footer>
     </div>
   );
