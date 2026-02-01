@@ -52,10 +52,10 @@ export default function Admin() {
   });
 
   const { data: analyticsData } = useQuery<{
-    stats: { page: string; views: number }[];
-    total: number;
-    last7Days: number;
-    last30Days: number;
+    totalViews: number;
+    pageBreakdown: { page: string; views: number }[];
+    dailyViews: { date: string; views: number }[];
+    topReferrers: { referrer: string; count: number }[];
   }>({
     queryKey: ["/api/analytics/stats"],
     queryFn: async () => {
@@ -868,26 +868,16 @@ export default function Admin() {
           </p>
           {analyticsData && (
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="border border-black p-3">
-                  <div className="font-mono text-2xl">{analyticsData.total}</div>
-                  <div className="font-mono text-xs lowercase text-gray-600">total views</div>
-                </div>
-                <div className="border border-black p-3">
-                  <div className="font-mono text-2xl">{analyticsData.last7Days}</div>
-                  <div className="font-mono text-xs lowercase text-gray-600">last 7 days</div>
-                </div>
-                <div className="border border-black p-3">
-                  <div className="font-mono text-2xl">{analyticsData.last30Days}</div>
-                  <div className="font-mono text-xs lowercase text-gray-600">last 30 days</div>
-                </div>
+              <div className="border border-black p-3 inline-block">
+                <div className="font-mono text-2xl">{analyticsData.totalViews}</div>
+                <div className="font-mono text-xs lowercase text-gray-600">total views</div>
               </div>
-              {analyticsData.stats.length > 0 && (
+              {analyticsData.pageBreakdown.length > 0 && (
                 <div>
                   <div className="font-mono text-xs lowercase mb-2">views by page:</div>
                   <div className="border border-black">
-                    {analyticsData.stats.map((stat, i) => (
-                      <div key={stat.page} className={`flex justify-between p-2 font-mono text-sm ${i !== analyticsData.stats.length - 1 ? 'border-b border-black' : ''}`}>
+                    {analyticsData.pageBreakdown.map((stat, i) => (
+                      <div key={stat.page} className={`flex justify-between p-2 font-mono text-sm ${i !== analyticsData.pageBreakdown.length - 1 ? 'border-b border-black' : ''}`}>
                         <span className="lowercase">{stat.page}</span>
                         <span>{stat.views}</span>
                       </div>
