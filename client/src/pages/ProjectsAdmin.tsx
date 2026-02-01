@@ -8,6 +8,11 @@ interface ProjectImage {
   caption?: string;
 }
 
+interface CustomLink {
+  label: string;
+  url: string;
+}
+
 export default function ProjectsAdmin() {
   const queryClient = useQueryClient();
   const { isAuthenticated, password: adminPassword, login, isLocked, requiresCode } = useAdminAuth();
@@ -21,6 +26,7 @@ export default function ProjectsAdmin() {
     description: "",
     images: [] as ProjectImage[],
     date: "",
+    customLinks: [] as CustomLink[],
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -129,6 +135,7 @@ export default function ProjectsAdmin() {
       description: "",
       images: [],
       date: "",
+      customLinks: [],
     });
     setEditingId(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -201,12 +208,37 @@ export default function ProjectsAdmin() {
   const startEdit = (project: Project) => {
     setEditingId(project.id);
     const images = (project.images as ProjectImage[]) || [];
+    const customLinks = (project.customLinks as CustomLink[]) || [];
     setFormData({
       title: project.title,
       description: project.description || "",
       images: images,
       date: project.date || "",
+      customLinks: customLinks,
     });
+  };
+
+  const addCustomLink = () => {
+    setFormData(prev => ({
+      ...prev,
+      customLinks: [...prev.customLinks, { label: "", url: "" }],
+    }));
+  };
+
+  const updateCustomLink = (index: number, field: "label" | "url", value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      customLinks: prev.customLinks.map((link, i) => 
+        i === index ? { ...link, [field]: value } : link
+      ),
+    }));
+  };
+
+  const removeCustomLink = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      customLinks: prev.customLinks.filter((_, i) => i !== index),
+    }));
   };
 
   if (!isAuthenticated) {
@@ -377,6 +409,49 @@ export default function ProjectsAdmin() {
                   ))}
                 </div>
               )}
+            </div>
+
+            <div>
+              <label className="font-mono text-xs block mb-2 lowercase">custom links</label>
+              <div className="space-y-2">
+                {formData.customLinks.map((link, index) => (
+                  <div key={index} className="flex gap-2 items-start">
+                    <input
+                      type="text"
+                      value={link.label}
+                      onChange={(e) => updateCustomLink(index, "label", e.target.value)}
+                      placeholder="link name..."
+                      className="flex-1 border border-black p-2 font-mono text-sm focus:outline-none"
+                      data-testid={`input-link-label-${index}`}
+                    />
+                    <input
+                      type="url"
+                      value={link.url}
+                      onChange={(e) => updateCustomLink(index, "url", e.target.value)}
+                      placeholder="https://..."
+                      className="flex-1 border border-black p-2 font-mono text-sm focus:outline-none"
+                      data-testid={`input-link-url-${index}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeCustomLink(index)}
+                      className="border border-black px-3 py-2 font-mono text-sm hover:bg-red-500 hover:text-white hover:border-red-500"
+                      data-testid={`button-remove-link-${index}`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addCustomLink}
+                  className="border border-black px-3 py-2 font-mono text-xs lowercase hover:bg-black hover:text-white"
+                  data-testid="button-add-link"
+                >
+                  + add link
+                </button>
+              </div>
+              <p className="font-mono text-[10px] text-gray-500 mt-1">add links to pdfs, videos, or external documents</p>
             </div>
 
             <div className="flex gap-2">
