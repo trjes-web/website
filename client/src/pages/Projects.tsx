@@ -1,11 +1,11 @@
-// FILE: client/src/pages/Projects.tsx
-
 import { useQuery } from "@tanstack/react-query";
 import { FloatingNav } from "@/components/FloatingNav";
 import { ImageGallery } from "@/components/ImageGallery";
+import { useLanguage } from "@/contexts/LanguageContext";
 import type { Project } from "@shared/schema";
 
 export default function Projects() {
+  const { t } = useLanguage();
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
     queryFn: async () => {
@@ -29,14 +29,13 @@ export default function Projects() {
 
       <main className="flex-1 mt-24 max-w-3xl mx-auto w-full">
         {isLoading ? (
-          <p className="font-mono text-xs lowercase">loading...</p>
+          <p className="font-mono text-xs lowercase">{t("loading")}</p>
         ) : projects.length === 0 ? (
-          <p className="font-mono text-xs lowercase text-gray-500">no projects yet.</p>
+          <p className="font-mono text-xs lowercase text-gray-500">{t("noProjectsYet")}</p>
         ) : (
           <div className="space-y-16">
             {projects.map((project) => {
               const images = (project.images as { url: string; caption?: string }[]) || [];
-              const links = (project.links as { url: string; text: string }[]) || [];
               return (
                 <article key={project.id} className="border-b border-black pb-12" data-testid={`project-${project.id}`}>
                   <div className="mb-6">
@@ -55,24 +54,8 @@ export default function Projects() {
                   )}
                   
                   {project.description && (
-                    <div className="font-mono text-sm lowercase whitespace-pre-wrap leading-relaxed mb-4" data-testid={`text-description-${project.id}`}>
+                    <div className="font-mono text-sm lowercase whitespace-pre-wrap leading-relaxed" data-testid={`text-description-${project.id}`}>
                       {project.description}
-                    </div>
-                  )}
-
-                  {links.length > 0 && (
-                    <div className="flex flex-wrap gap-4">
-                      {links.map((link, idx) => (
-                        <a
-                          key={idx}
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-mono text-xs lowercase underline hover:no-underline inline-block"
-                        >
-                          {link.text || "link"} →
-                        </a>
-                      ))}
                     </div>
                   )}
                 </article>
@@ -83,7 +66,7 @@ export default function Projects() {
       </main>
 
       <footer className="mt-16 font-mono text-[10px] lowercase text-center">
-        <a href="/impressum" className="text-gray-400 hover:text-black">impressum / legal notice</a>
+        <a href="/impressum" className="text-gray-400 hover:text-black">{t("legalNotice")}</a>
       </footer>
     </div>
   );
