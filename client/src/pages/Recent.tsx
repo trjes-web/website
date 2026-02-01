@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { SaySomething } from "@/components/SaySomething";
+import { useLanguage } from "@/contexts/LanguageContext";
 import type { RecentEntry } from "@shared/schema";
 
 export default function Recent() {
+  const { t } = useLanguage();
   const [currentEntryIndex, setCurrentEntryIndex] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [saySomethingOpen, setSaySomethingOpen] = useState(false);
@@ -46,8 +48,8 @@ export default function Recent() {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center font-mono">
         <div className="text-center lowercase">
-          <p className="text-gray-600 mb-4">no recent entries</p>
-          <Link href="/" className="underline hover:opacity-60">back to home</Link>
+          <p className="text-gray-600 mb-4">{t("noRecentEntries")}</p>
+          <Link href="/" className="underline hover:opacity-60">{t("backToHome")}</Link>
         </div>
       </div>
     );
@@ -105,11 +107,11 @@ export default function Recent() {
               className="text-sm lowercase underline hover:opacity-60 transition-opacity"
               data-testid="button-say-something"
             >
-              say something
+              {t("saySomething")}
             </button>
 
             <Link href="/" className="text-sm lowercase underline hover:opacity-60">
-              home
+              {t("home")}
             </Link>
           </div>
         </div>
