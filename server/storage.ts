@@ -33,10 +33,14 @@ export interface IStorage {
   deleteProject(id: string): Promise<boolean>;
   reorderProjects(orderedIds: string[]): Promise<void>;
 
-  recordPageView(data: InsertPageView): Promise<PageView>;
-  getPageViewStats(): Promise<{ page: string; views: number }[]>;
-  getTotalPageViews(): Promise<number>;
-  getRecentPageViews(days: number): Promise<number>;
+  createPageView(data: InsertPageView): Promise<PageView>;
+  getPageViewStats(days?: number): Promise<{
+    totalViews: number;
+    pageBreakdown: { page: string; views: number }[];
+    dailyViews: { date: string; views: number }[];
+    topReferrers: { referrer: string; count: number }[];
+  }>;
+  getAllSettings(): Promise<SiteSetting[]>;
 
   subscribeNewsletter(email: string): Promise<NewsletterSubscriber>;
   getNewsletterSubscribers(): Promise<NewsletterSubscriber[]>;
@@ -231,41 +235,6 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async recordPageView(data: InsertPageView): Promise<PageView> {
-    const [view] = await db
-      .insert(pageViews)
-      .values(data)
-      .returning();
-    return view;
-  }
-
-  async getPageViewStats(): Promise<{ page: string; views: number }[]> {
-    const result = await db
-      .select({
-        page: pageViews.page,
-        views: sql<number>`count(*)::int`,
-      })
-      .from(pageViews)
-      .groupBy(pageViews.page)
-      .orderBy(desc(sql`count(*)`));
-    return result;
-  }
-
-  async getTotalPageViews(): Promise<number> {
-    const result = await db.select().from(pageViews);
-    return result.length;
-  }
-
-  async getRecentPageViews(days: number): Promise<number> {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    const result = await db
-      .select()
-      .from(pageViews)
-      .where(gte(pageViews.visitedAt, cutoff));
-    return result.length;
-  }
-
   async subscribeNewsletter(email: string): Promise<NewsletterSubscriber> {
     const [subscriber] = await db
       .insert(newsletterSubscribers)
@@ -336,6 +305,73 @@ export class DatabaseStorage implements IStorage {
 
   async getContactMessages(): Promise<ContactMessage[]> {
     return await db.select().from(contactMessages).orderBy(desc(contactMessages.createdAt));
+  }
+
+  async getAllSettings(): Promise<SiteSetting[]> {
+    return await db.select().from(siteSettings);
+  }
+
+  async createPageView(data: InsertPageView): Promise<PageView> {
+    const [view] = await db
+      .insert(pageViews)
+      .values(data)
+      .returning();
+    return view;
+  }
+
+  async getPageViewStats(days: number = 30): Promise<{
+    totalViews: number;
+    pageBreakdown: { page: string; views: number }[];
+    dailyViews: { date: string; views: number }[];
+    topReferrers: { referrer: string; count: number }[];
+  }> {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+
+    const views = await db
+      .select()
+      .from(pageViews)
+      .where(gte(pageViews.visitedAt, cutoff));
+
+    const pageBreakdown = await db
+      .select({
+        page: pageViews.page,
+        views: sql<number>`count(*)::int`,
+      })
+      .from(pageViews)
+      .where(gte(pageViews.visitedAt, cutoff))
+      .groupBy(pageViews.page)
+      .orderBy(desc(sql`count(*)`));
+
+    const dailyViewsRaw = await db
+      .select({
+        date: sql<string>`to_char(visited_at, 'YYYY-MM-DD')`,
+        views: sql<number>`count(*)::int`,
+      })
+      .from(pageViews)
+      .where(gte(pageViews.visitedAt, cutoff))
+      .groupBy(sql`to_char(visited_at, 'YYYY-MM-DD')`)
+      .orderBy(sql`to_char(visited_at, 'YYYY-MM-DD')`);
+
+    const referrersRaw = await db
+      .select({
+        referrer: pageViews.referrer,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(pageViews)
+      .where(gte(pageViews.visitedAt, cutoff))
+      .groupBy(pageViews.referrer)
+      .orderBy(desc(sql`count(*)`))
+      .limit(10);
+
+    return {
+      totalViews: views.length,
+      pageBreakdown,
+      dailyViews: dailyViewsRaw,
+      topReferrers: referrersRaw
+        .filter(r => r.referrer && r.referrer !== '')
+        .map(r => ({ referrer: r.referrer!, count: r.count })),
+    };
   }
 }
 
