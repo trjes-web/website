@@ -1,8 +1,10 @@
 import { FloatingNav } from "@/components/FloatingNav";
 import { Slideshow } from "@/components/Slideshow";
 import { useQuery } from "@tanstack/react-query";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Home() {
+  const { t } = useLanguage();
   const { data: newsData } = useQuery<{ value: string | null }>({
     queryKey: ["/api/settings/newsLine"],
     queryFn: async () => {
@@ -34,7 +36,7 @@ export default function Home() {
       </main>
 
       <footer className="fixed bottom-4 left-0 right-0 font-mono text-[10px] lowercase text-center">
-        <a href="/impressum" className="text-gray-400 hover:text-black">impressum / legal notice</a>
+        <a href="/impressum" className="text-gray-400 hover:text-black">{t("impressum")}</a>
       </footer>
     </div>
   );
