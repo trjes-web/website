@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { FloatingNav } from "@/components/FloatingNav";
 import { ImageGallery } from "@/components/ImageGallery";
+import { BackToTop } from "@/components/BackToTop";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { Project } from "@shared/schema";
 
@@ -18,6 +19,7 @@ export default function Projects() {
   return (
     <div className="min-h-screen p-8 flex flex-col relative">
       <FloatingNav />
+      <BackToTop />
 
       <header className="fixed top-4 left-4">
         <h1 className="text-xl font-bold font-sans lowercase border-b border-black inline-block">
