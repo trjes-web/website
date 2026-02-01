@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useCV } from "@/lib/cvContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface NavBall {
   id: string;
@@ -34,6 +35,7 @@ const DEFAULT_PAGES = ["portfolio", "cv", "projects", "contact", "archive", "rec
 export function FloatingNav() {
   const [, setLocation] = useLocation();
   const { openCV } = useCV();
+  const { t, language } = useLanguage();
   const ballsRef = useRef<NavBall[]>([]);
   const [renderTrigger, setRenderTrigger] = useState(0);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -85,11 +87,11 @@ export function FloatingNav() {
 
   const isMobile = dimensions.width > 0 && dimensions.width < 768;
 
-  // Reset balls when enabled pages change
+  // Reset balls when enabled pages or language changes
   useEffect(() => {
     ballsRef.current = [];
     setRenderTrigger(r => r + 1);
-  }, [enabledPages]);
+  }, [enabledPages, language]);
 
   // Initialize balls
   useEffect(() => {
@@ -106,6 +108,7 @@ export function FloatingNav() {
     
     ballsRef.current = navItems.map((item, i) => {
       const baseAngle = (i / navItems.length) * Math.PI * 2;
+      const translatedLabel = t(item.id);
       
       if (isMobile) {
         const x = centerX + Math.cos(baseAngle) * orbitRadiusX - BALL_SIZE / 2;
@@ -113,6 +116,7 @@ export function FloatingNav() {
         
         return {
           ...item,
+          label: translatedLabel,
           x: Math.max(0, Math.min(x, dimensions.width - BALL_SIZE)),
           y: Math.max(EDGE_TOP, Math.min(y, dimensions.height - EDGE_BOTTOM - BALL_SIZE)),
           vx: 0,
@@ -132,6 +136,7 @@ export function FloatingNav() {
         
         return {
           ...item,
+          label: translatedLabel,
           x: Math.max(0, Math.min(x, dimensions.width - BALL_SIZE)),
           y: Math.max(EDGE_TOP, Math.min(y, dimensions.height - EDGE_BOTTOM - BALL_SIZE)),
           vx: (Math.random() - 0.5) * SPEED * 2,
@@ -142,7 +147,7 @@ export function FloatingNav() {
     });
     
     setRenderTrigger(1);
-  }, [dimensions.width, dimensions.height, enabledPages, isMobile]);
+  }, [dimensions.width, dimensions.height, enabledPages, isMobile, t]);
 
   // Animation with setInterval (more reliable on mobile)
   useEffect(() => {
