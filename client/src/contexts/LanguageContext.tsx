@@ -43,6 +43,21 @@ const translations: Translations = {
   title: { de: "Titel", en: "Title" },
   description: { de: "Beschreibung", en: "Description" },
   leaveMessage: { de: "Nachricht hinterlassen", en: "Leave a message" },
+  saySomething: { de: "Etwas sagen", en: "Say something" },
+  backToHome: { de: "Zurück zur Startseite", en: "Back to home" },
+  noRecentEntries: { de: "Keine aktuellen Einträge", en: "No recent entries" },
+  noProjectsYet: { de: "Noch keine Projekte.", en: "No projects yet." },
+  noArchiveEntries: { de: "Noch keine Archiveinträge.", en: "No archive entries yet." },
+  noResultsFound: { de: "Keine Ergebnisse gefunden.", en: "No results found." },
+  searchArchive: { de: "Archiv durchsuchen...", en: "Search archive..." },
+  viewFloorPlan: { de: "Raumplan / Text ansehen →", en: "View floor plan / text →" },
+  impressumTitle: { de: "Impressum / Rechtliche Hinweise", en: "Impressum / Legal Notice" },
+  legalNotice: { de: "Impressum / Rechtliche Hinweise", en: "Impressum / Legal Notice" },
+  subscribeSuccess: { de: "Erfolgreich abonniert!", en: "Successfully subscribed!" },
+  enterEmail: { de: "E-Mail eingeben", en: "Enter email" },
+  alreadySubscribed: { de: "Bereits abonniert", en: "Already subscribed" },
+  impressumDefault: { de: "Impressum-Inhalt wird hier eingefügt.", en: "Impressum content will be added here." },
+  connectionError: { de: "Verbindungsfehler", en: "Connection error" },
 };
 
 interface LanguageContextType {
