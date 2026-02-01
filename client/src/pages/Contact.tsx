@@ -2,8 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { FloatingNav } from "@/components/FloatingNav";
 import { EnvelopeParticles, useEnvelopeParticles } from "@/components/EnvelopeParticles";
 import { NewsletterSignup } from "@/components/NewsletterSignup";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Contact() {
+  const { t } = useLanguage();
   const { particles, triggerParticles } = useEnvelopeParticles();
 
   const handleLinkHover = (e: React.MouseEvent) => {
@@ -77,7 +79,7 @@ export default function Contact() {
 
       <footer className="fixed bottom-4 left-0 right-0 text-center">
         <a href="/impressum" className="font-mono text-[10px] text-gray-400 lowercase hover:text-black" data-testid="link-impressum">
-          impressum / legal notice
+          {t("legalNotice")}
         </a>
       </footer>
     </div>
