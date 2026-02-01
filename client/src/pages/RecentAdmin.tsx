@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { RecentEntry } from "@shared/schema";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 
 interface RecentImage {
   url: string;
@@ -9,9 +10,9 @@ interface RecentImage {
 
 export default function RecentAdmin() {
   const queryClient = useQueryClient();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
+  const { isAuthenticated, password: adminPassword, login, isLocked, requiresCode } = useAdminAuth();
+  const [inputPassword, setInputPassword] = useState("");
+  const [unlockCode, setUnlockCode] = useState("");
   const [authError, setAuthError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -119,20 +120,9 @@ export default function RecentAdmin() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
-    try {
-      const res = await fetch("/api/admin/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      if (res.ok) {
-        setIsAuthenticated(true);
-        setAdminPassword(password);
-      } else {
-        setAuthError("incorrect password");
-      }
-    } catch {
-      setAuthError("connection error");
+    const result = await login(inputPassword, unlockCode || undefined);
+    if (!result.success) {
+      setAuthError(result.error || "incorrect password");
     }
   };
 
@@ -219,12 +209,22 @@ export default function RecentAdmin() {
           <h1 className="text-xl lowercase">recent admin</h1>
           <input
             type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={inputPassword}
+            onChange={(e) => setInputPassword(e.target.value)}
             placeholder="password"
             className="w-full border-2 border-black p-2 lowercase"
             data-testid="input-password"
           />
+          {requiresCode && (
+            <input
+              type="text"
+              value={unlockCode}
+              onChange={(e) => setUnlockCode(e.target.value.toUpperCase())}
+              placeholder="unlock code"
+              className="w-full border-2 border-black p-2 uppercase"
+              data-testid="input-unlock-code"
+            />
+          )}
           {authError && <p className="text-red-600 text-sm">{authError}</p>}
           <button
             type="submit"
