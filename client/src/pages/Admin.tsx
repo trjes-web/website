@@ -1,15 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { SlideshowImage, NewsletterSubscriber } from "@shared/schema";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 
 export default function Admin() {
   const queryClient = useQueryClient();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState("");
-  const [authError, setAuthError] = useState("");
-  const [isLocked, setIsLocked] = useState(false);
-  const [requiresCode, setRequiresCode] = useState(false);
+  const { isAuthenticated, password: adminPassword, login, isLocked, requiresCode } = useAdminAuth();
+  const [inputPassword, setInputPassword] = useState("");
   const [unlockCode, setUnlockCode] = useState("");
+  const [authError, setAuthError] = useState("");
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -146,8 +145,6 @@ export default function Admin() {
     enabled: isAuthenticated,
   });
 
-  const [adminPassword, setAdminPassword] = useState("");
-  
   const { data: subscribers = [] } = useQuery<NewsletterSubscriber[]>({
     queryKey: ["/api/newsletter/subscribers", adminPassword],
     queryFn: async () => {
@@ -428,32 +425,14 @@ export default function Admin() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
-    try {
-      const res = await fetch("/api/admin/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password, unlockCode: unlockCode || undefined }),
-      });
-      const data = await res.json();
-      
-      if (res.ok) {
-        setIsAuthenticated(true);
-        setAdminPassword(password);
-        setIsLocked(false);
-        setRequiresCode(false);
-        setAttemptsRemaining(null);
-      } else if (res.status === 423 || data.locked) {
-        setIsLocked(true);
-        setRequiresCode(data.requiresCode || false);
-        setAuthError(data.error || "too many attempts");
-      } else {
-        setAuthError(data.error || "incorrect password");
-        if (data.attemptsRemaining !== undefined) {
-          setAttemptsRemaining(data.attemptsRemaining);
-        }
+    const result = await login(inputPassword, unlockCode || undefined);
+    if (!result.success) {
+      setAuthError(result.error || "incorrect password");
+      if (result.attemptsRemaining !== undefined) {
+        setAttemptsRemaining(result.attemptsRemaining);
       }
-    } catch {
-      setAuthError("connection error");
+    } else {
+      setAttemptsRemaining(null);
     }
   };
 
@@ -525,8 +504,8 @@ export default function Admin() {
                 <label className="font-mono text-xs block mb-1 lowercase">password:</label>
                 <input
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={inputPassword}
+                  onChange={(e) => setInputPassword(e.target.value)}
                   className="w-full border border-black p-2 font-mono text-sm focus:outline-none"
                   data-testid="input-password"
                   autoFocus
@@ -867,19 +846,68 @@ export default function Admin() {
             anonymous page view statistics (only tracked when visitors accept cookies)
           </p>
           {analyticsData && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="border border-black p-3 inline-block">
                 <div className="font-mono text-2xl">{analyticsData.totalViews}</div>
                 <div className="font-mono text-xs lowercase text-gray-600">total views</div>
               </div>
+
+              {analyticsData.dailyViews.length > 0 && (
+                <div>
+                  <div className="font-mono text-xs lowercase mb-2">daily views (last 7 days):</div>
+                  <div className="border border-black p-4">
+                    <div className="flex items-end gap-2 h-32">
+                      {analyticsData.dailyViews.slice(-7).map((day) => {
+                        const maxViews = Math.max(...analyticsData.dailyViews.slice(-7).map(d => d.views));
+                        const height = maxViews > 0 ? (day.views / maxViews) * 100 : 0;
+                        return (
+                          <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
+                            <span className="font-mono text-xs">{day.views}</span>
+                            <div 
+                              className="w-full bg-black transition-all" 
+                              style={{ height: `${height}%`, minHeight: day.views > 0 ? '4px' : '0' }}
+                            />
+                            <span className="font-mono text-xs text-gray-600">{day.date.slice(-5)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {analyticsData.pageBreakdown.length > 0 && (
                 <div>
                   <div className="font-mono text-xs lowercase mb-2">views by page:</div>
+                  <div className="border border-black p-4 space-y-2">
+                    {analyticsData.pageBreakdown.map((stat) => {
+                      const maxViews = Math.max(...analyticsData.pageBreakdown.map(s => s.views));
+                      const width = maxViews > 0 ? (stat.views / maxViews) * 100 : 0;
+                      return (
+                        <div key={stat.page} className="flex items-center gap-2">
+                          <span className="font-mono text-xs lowercase w-24 truncate">{stat.page}</span>
+                          <div className="flex-1 h-4 bg-gray-100 relative">
+                            <div 
+                              className="h-full bg-black transition-all" 
+                              style={{ width: `${width}%` }}
+                            />
+                          </div>
+                          <span className="font-mono text-xs w-8 text-right">{stat.views}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {analyticsData.topReferrers && analyticsData.topReferrers.length > 0 && (
+                <div>
+                  <div className="font-mono text-xs lowercase mb-2">top referrers:</div>
                   <div className="border border-black">
-                    {analyticsData.pageBreakdown.map((stat, i) => (
-                      <div key={stat.page} className={`flex justify-between p-2 font-mono text-sm ${i !== analyticsData.pageBreakdown.length - 1 ? 'border-b border-black' : ''}`}>
-                        <span className="lowercase">{stat.page}</span>
-                        <span>{stat.views}</span>
+                    {analyticsData.topReferrers.slice(0, 5).map((ref, i) => (
+                      <div key={ref.referrer} className={`flex justify-between p-2 font-mono text-xs ${i !== Math.min(analyticsData.topReferrers.length, 5) - 1 ? 'border-b border-black' : ''}`}>
+                        <span className="truncate max-w-xs">{ref.referrer.replace(/^https?:\/\//, '')}</span>
+                        <span>{ref.count}</span>
                       </div>
                     ))}
                   </div>
