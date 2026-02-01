@@ -50,12 +50,100 @@ export async function registerRoutes(
   
   registerUploadRoutes(app);
 
-  app.post("/api/admin/verify", (req, res) => {
-    const { password } = req.body;
+  const loginAttemptsMap = new Map<string, { count: number; lockedUntil: Date | null; code: string | null; codeExpires: Date | null }>();
+  const MAX_ATTEMPTS = 3;
+  const LOCKOUT_MINUTES = 30;
+  const ARTIST_EMAIL = "jesaja.trummer@gmail.com";
+
+  function generateCode(): string {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
+  }
+
+  async function sendUnlockEmail(code: string): Promise<boolean> {
+    const RESEND_API_KEY = process.env.RESEND_API_KEY;
+    if (!RESEND_API_KEY) return false;
+    
+    try {
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "Portfolio <onboarding@resend.dev>",
+          to: [ARTIST_EMAIL],
+          subject: "Admin Login Unlock Code",
+          text: `Someone tried to log into your admin panel multiple times.\n\nYour unlock code is: ${code}\n\nThis code expires in 30 minutes.\n\nIf this wasn't you, please ignore this email.`,
+        }),
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  app.post("/api/admin/verify", async (req, res) => {
+    const { password, unlockCode } = req.body;
+    const clientIp = req.ip || req.headers["x-forwarded-for"] || "unknown";
+    const ipKey = String(clientIp);
+
+    let attempt = loginAttemptsMap.get(ipKey) || { count: 0, lockedUntil: null, code: null, codeExpires: null };
+
+    // Check if locked and code required
+    if (attempt.lockedUntil && new Date() < attempt.lockedUntil) {
+      if (!unlockCode) {
+        return res.status(423).json({ 
+          error: "Too many attempts. Check your email for unlock code.",
+          locked: true,
+          requiresCode: true
+        });
+      }
+      
+      // Verify unlock code
+      if (attempt.code && attempt.codeExpires && new Date() < attempt.codeExpires) {
+        if (unlockCode.toUpperCase() === attempt.code) {
+          // Code correct - reset attempts
+          attempt = { count: 0, lockedUntil: null, code: null, codeExpires: null };
+          loginAttemptsMap.set(ipKey, attempt);
+        } else {
+          return res.status(401).json({ error: "Invalid unlock code", locked: true, requiresCode: true });
+        }
+      } else {
+        return res.status(401).json({ error: "Code expired. Try again.", locked: true });
+      }
+    }
+
+    // Verify password
     if (password === ADMIN_PASSWORD) {
+      // Success - reset attempts
+      loginAttemptsMap.set(ipKey, { count: 0, lockedUntil: null, code: null, codeExpires: null });
       res.json({ success: true });
     } else {
-      res.status(401).json({ error: "Invalid password" });
+      // Failed attempt
+      attempt.count += 1;
+      
+      if (attempt.count >= MAX_ATTEMPTS) {
+        const code = generateCode();
+        attempt.lockedUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000);
+        attempt.code = code;
+        attempt.codeExpires = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000);
+        loginAttemptsMap.set(ipKey, attempt);
+        
+        await sendUnlockEmail(code);
+        
+        return res.status(423).json({ 
+          error: "Too many attempts. Unlock code sent to admin email.",
+          locked: true,
+          requiresCode: true
+        });
+      }
+      
+      loginAttemptsMap.set(ipKey, attempt);
+      res.status(401).json({ 
+        error: "Invalid password",
+        attemptsRemaining: MAX_ATTEMPTS - attempt.count
+      });
     }
   });
   
