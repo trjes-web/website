@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export function BackToTop() {
+  const { t } = useLanguage();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -24,11 +26,12 @@ export function BackToTop() {
   return (
     <button
       onClick={scrollToTop}
-      className="fixed bottom-6 right-6 z-40 w-10 h-10 bg-black text-white font-mono text-lg flex items-center justify-center hover:bg-gray-800 transition-colors"
+      className="fixed bottom-4 right-4 z-50 font-mono text-sm lowercase text-black hover:text-gray-600 transition-colors flex items-center gap-1"
       aria-label="Back to top"
       data-testid="button-back-to-top"
     >
-      ↑
+      <span>↑</span>
+      <span>{t("backToTop")}</span>
     </button>
   );
 }
