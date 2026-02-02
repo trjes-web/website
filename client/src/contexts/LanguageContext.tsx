@@ -43,7 +43,7 @@ const translations: Translations = {
   title: { de: "titel", en: "title" },
   description: { de: "beschreibung", en: "description" },
   leaveMessage: { de: "nachricht hinterlassen", en: "leave a message" },
-  saySomething: { de: "kommentieren", en: "comment" },
+  saySomething: { de: "kommentieren/fragen", en: "comment/request" },
   backToHome: { de: "zurück zur startseite", en: "back to home" },
   noRecentEntries: { de: "keine aktuellen einträge", en: "no recent entries" },
   noProjectsYet: { de: "noch keine projekte.", en: "no projects yet." },
